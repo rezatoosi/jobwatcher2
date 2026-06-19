@@ -1,0 +1,21 @@
+subreddits:
+  - forhire
+
+keywords:
+  python: 15
+  django: 15
+  flask: 12
+  developer: 10
+  programmer: 10
+  backend: 10
+  hire: 8
+  freelance: 8
+
+min_score: 20
+request_delay: 5
+fetch_limit: 50
+
+network:
+  # Leave proxy empty ("") to connect directly without a proxy
+  proxy: "http://172.26.32.1:32541"
+  request_timeout: 15
