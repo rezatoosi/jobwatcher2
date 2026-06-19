@@ -1,5 +1,14 @@
 subreddits:
   - forhire
+  - freelance_forhire
+
+filters:
+  forhire:
+    title_must_contain: ["[Hiring]"]
+    title_must_not_contain: ["[For Hire]", "[META]"]
+  
+  freelance_forhire:
+    title_must_contain: ["[Hiring]"]
 
 keywords:
   python: 5
@@ -31,7 +40,7 @@ keywords:
   subcontracting: 15
 
 min_score: 20
-request_delay: 5
+request_delay: 60
 fetch_limit: 50
 
 network:

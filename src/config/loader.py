@@ -1,6 +1,7 @@
 """Load and validate application configuration from a YAML file."""
 
 from dataclasses import dataclass, field
+from typing import Any, Optional
 from pathlib import Path
 
 import yaml
@@ -16,6 +17,7 @@ class AppConfig:
 
     subreddits: list[str]
     keywords: dict[str, int]
+    filters: Optional[dict[str, dict]]
     min_score: int
     request_delay: int
     fetch_limit: int
@@ -45,7 +47,8 @@ def load_config(config_path: Path) -> AppConfig:
 
     return AppConfig(
         subreddits=_require_list(data, "subreddits"),
-        keywords=_require_dict(data, "keywords"),
+        keywords=_require_dict_int(data, "keywords"),
+        filters=_require_dict_in_dict(data,"filters"),
         min_score=_require_int(data, "min_score"),
         request_delay=_require_int(data, "request_delay"),
         fetch_limit=_require_int(data, "fetch_limit"),
@@ -64,7 +67,7 @@ def _require_list(data: dict, key: str) -> list[str]:
     return value
 
 
-def _require_dict(data: dict, key: str) -> dict[str, int]:
+def _require_dict_int(data: dict, key: str) -> dict[str, int]:
     """Return a non-empty dict with string keys and int values, or raise ValueError."""
     value = data.get(key)
     if not isinstance(value, dict) or not value:
@@ -75,6 +78,20 @@ def _require_dict(data: dict, key: str) -> dict[str, int]:
             raise ValueError(f"Config field '{key}' must have string keys")
         if not isinstance(v, int):
             raise ValueError(f"Config field '{key}' must have integer values")
+    
+    return value
+
+def _require_dict_in_dict(data: dict, key: str) -> dict[str, dict]:
+    """Return a non-empty dict with string keys and int values, or raise ValueError."""
+    value = data.get(key)
+    if not isinstance(value, dict) or not value:
+        raise ValueError(f"Config field '{key}' must be a non-empty dictionary")
+    
+    for k, v in value.items():
+        if not isinstance(k, str):
+            raise ValueError(f"Config field '{key}' must have string keys")
+        if not isinstance(v, dict):
+            raise ValueError(f"Config field '{key}' must have dict values")
     
     return value
 

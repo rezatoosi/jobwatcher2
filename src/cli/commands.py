@@ -6,6 +6,7 @@ from typing import Optional
 
 from src.config import load_config
 from src.fetcher.reddit import RedditRSSFetcher
+from src.filtering.post_filter import PostFilter
 from src.scoring.scorer import KeywordScorer
 from src.storage.database import Database
 
@@ -33,53 +34,98 @@ def cmd_fetch(config_path: Path = Path("config.yaml")):
         request_delay=config.request_delay,
         proxy_http=proxy_url
     )
+
+    post_filter = PostFilter(filters=config.filters)
     
-    scorer = KeywordScorer(keywords=config.keywords)
+    scorer = KeywordScorer(keywords=config.keywords, min_score=config.min_score)
     
     print("Fetching posts from Reddit...")
-    new_posts = 0
-    rejected_posts = 0
-    duplicate_posts = 0
+    total_fetched = 0
+    total_filtered_out = 0
+    total_duplicates = 0
+    total_scored = 0
+    total_accepted = 0
+    total_rejected = 0
+
+    try: 
+        # Stage 1: Fetch
+        posts = fetcher.fetch_posts()
+        total_fetched = len(posts)
+        print(f"  Fetched {len(posts)} posts")
+
+        # Stage 2: Pre-filter
+        filtered_posts = post_filter.filter_posts(posts)
+        total_filtered_out = total_fetched - len(filtered_posts)
+
+        if total_filtered_out  > 0:
+            print(f"  Filtered out {total_filtered_out} posts by rules")
+        
+        if not filtered_posts:
+            print(f"  No posts passed filters")
+            return
+        
+        # Stage 3: Remove duplicates
+        unique_posts = [p for p in filtered_posts if not db.post_exists(p.post_id)]
+        total_duplicates = len(filtered_posts) - len(unique_posts)
+        
+        if total_duplicates > 0:
+            print(f"  Skipped {total_duplicates} duplicates")
+
+        # Stage 4: Keyword scoring (score all posts once)
+        all_scored = [scorer.score_post(p) for p in unique_posts]
+        total_scored = len(all_scored)
+        
+        # Split by threshold
+        accepted_posts = [sp for sp in all_scored if sp.score >= config.min_score]
+        rejected_posts = [sp for sp in all_scored if sp.score < config.min_score]
+        
+        total_accepted = len(accepted_posts)
+        total_rejected = len(rejected_posts)
+
+    except Exception as e:
+        print(f"  ✗ Error fetching: {e}")
     
-    for post in fetcher.fetch_posts():
-        print(f"  Found: r/{post.subreddit} - {post.title[:50]}...")
+    # Save accepted posts
+    for scored_post in accepted_posts:
+        post = scored_post.post
+        print(f"  ✓ [{post.subreddit}] {post.title[:50]}...")
+        print(f"    Score: {scored_post.score} | Keywords: {', '.join(scored_post.matched_keywords)}")
         
-        if db.post_exists(post.post_id):
-            duplicate_posts += 1
-            continue
-        
-        scored_post = scorer.score_post(post)
-        
-        if scored_post.score >= config.min_score:
-            db.save_post(
-                post_id=post.post_id,
-                subreddit=post.subreddit,
-                title=post.title,
-                body=post.body,
-                url=post.url,
-                score=scored_post.score,
-                matched_keywords=scored_post.matched_keywords
-            )
-            new_posts += 1
-            print(f"    ✓ Accepted (score: {scored_post.score}, keywords: {', '.join(scored_post.matched_keywords)})")
-        else:
-            db.save_rejected_post(
-                post_id=post.post_id,
-                subreddit=post.subreddit,
-                title=post.title,
-                body=post.body,
-                url=post.url,
-                score=scored_post.score,
-                matched_keywords=scored_post.matched_keywords
-            )
-            rejected_posts += 1
-            print(f"    ✗ Rejected (score: {scored_post.score})")
+        db.save_post(
+            post_id=post.post_id,
+            subreddit=post.subreddit,
+            title=post.title,
+            body=post.body,
+            url=post.url,
+            score=scored_post.score,
+            matched_keywords=scored_post.matched_keywords
+        )
     
+    # Save rejected posts
+    for scored_post in rejected_posts:
+        post = scored_post.post
+        db.save_rejected_post(
+            post_id=post.post_id,
+            subreddit=post.subreddit,
+            title=post.title,
+            body=post.body,
+            url=post.url,
+            score=scored_post.score,
+            matched_keywords=scored_post.matched_keywords
+        )
+
+    # Summary
     print()
-    print(f"Summary:")
-    print(f"  New posts: {new_posts}")
-    print(f"  Rejected: {rejected_posts}")
-    print(f"  Duplicates: {duplicate_posts}")
+    print("=== Fetch Summary ===\n")
+    print(f"Total fetched:       {total_fetched}")
+    print(f"Filtered out:        {total_filtered_out}")
+    print(f"Duplicates skipped:  {total_duplicates}")
+    print(f"Scored:              {total_scored}")
+    print(f"Accepted:            {total_accepted}")
+    print(f"Rejected (scored):   {total_rejected}")
+    print("="*10)
+
+    # TODO: add a file logger to log fetch info
 
 
 def cmd_view(show_accepted: bool = True, show_rejected: bool = False, limit: Optional[int] = None):
@@ -94,7 +140,7 @@ def cmd_view(show_accepted: bool = True, show_rejected: bool = False, limit: Opt
             print("No accepted posts found.\n")
         else:
             for idx, post in enumerate(posts, 1):
-                print(f"{idx}. [{post['subreddit']}] {post['title']}")
+                print(f"{idx}. [/r/{post['subreddit']}]: {post['title']}")
                 print(f"   Score: {post['score']} | Keywords: {post['matched_keywords']}")
                 print(f"   URL: {post['url']}")
                 print(f"   Created: {post['created_at']}")
@@ -111,10 +157,10 @@ def cmd_view(show_accepted: bool = True, show_rejected: bool = False, limit: Opt
             print("No rejected posts found.\n")
         else:
             for idx, post in enumerate(posts, 1):
-                print(f"{idx}. [{post['subreddit']}] {post['title']}")
+                print(f"{idx}. [/r/{post['subreddit']}]: {post['title']}")
                 print(f"   Score: {post['score']} | Keywords: {post['matched_keywords']}")
                 print(f"   URL: {post['url']}")
-                print(f"   Created: {post['created_at']}")
+                print(f"   Rejected: {post['rejected_at']}")
                 print()
 
 

@@ -135,7 +135,7 @@ class RedditRSSFetcher:
         self,
         subreddits: list[str],
         limit: int = 25,
-        request_delay: float = 2.0,
+        request_delay: float = 60,
         proxy_http: Optional[str] = None,
         proxy_socks5: Optional[str] = None,
         timeout: int = 10
