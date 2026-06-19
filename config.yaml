@@ -2,14 +2,33 @@ subreddits:
   - forhire
 
 keywords:
-  python: 15
-  django: 15
-  flask: 12
+  python: 5
+  django: 5
+  flask: 5
+  React: 5
+  php: 5
+  wordpress: 5
+  woocommerce: 5
+  nestjs: 5
+  nextjs: 5
+  typescript: 5
+  javascript: 5
+  js: 5
+  node: 5
   developer: 10
   programmer: 10
   backend: 10
-  hire: 8
+  hire: 2
+  hiring: 10
   freelance: 8
+  urgent: 15
+  ASAP: 15
+  need help: 20
+  overloaded: 20
+  need a developer: 10
+  looking for: 5
+  too many projects: 15
+  subcontracting: 15
 
 min_score: 20
 request_delay: 5
