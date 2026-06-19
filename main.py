@@ -1,105 +1,83 @@
-"""Main entry point for Reddit post monitoring."""
+# main.py
+"""Main entry point for Reddit post monitoring CLI."""
 
+import argparse
+import sys
 from pathlib import Path
 
-from src.config import load_config
-from src.fetcher.reddit import RedditFetcher
-from src.fetcher.reddit import RedditRSSFetcher
-from src.scoring.scorer import KeywordScorer
-from src.storage.database import Database
+from src.cli.commands import cmd_fetch, cmd_stats, cmd_view
 
 
 def main():
-    """Run the Reddit post monitoring workflow."""
-    # Load configuration
-    config_path = Path("config.yaml")
-    config = load_config(config_path)
-    
-    print(f"Configuration loaded successfully:")
-    print(f"  Subreddits: {', '.join(config.subreddits)}")
-    print(f"  Keywords: {len(config.keywords)} keywords")
-    print(f"  Min score threshold: {config.min_score}")
-    print(f"  Fetch Limit: {config.fetch_limit}")
-    print()
-    
-    # Initialize components
-    db = Database("posts.db")
-    
-    # Build proxy URL from network config
-    proxy_url = None
-    # if config.network.proxy:
-    #     proxy_url = config.network.proxy
-    
-    # fetcher = RedditFetcher(
-    #     request_delay=config.request_delay,
-    #     proxy_http=proxy_url,
-    #     timeout=config.network.request_timeout
-    # )
-
-    fetcher = RedditRSSFetcher(
-        subreddits=config.subreddits,
-        limit=config.fetch_limit,
-        request_delay=config.request_delay,
-        proxy_http=proxy_url
+    """Run the Reddit post monitoring CLI."""
+    parser = argparse.ArgumentParser(
+        description="Reddit Job Post Monitor - Track and score job posts from subreddits",
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
     
-    scorer = KeywordScorer(keywords=config.keywords)
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
-    # Fetch and process posts
-    print("Fetching posts from Reddit...")
-    new_posts_count = 0
-    rejected_posts_count = 0
-    duplicate_posts_count = 0
+    # Fetch command
+    fetch_parser = subparsers.add_parser("fetch", help="Fetch new posts from Reddit")
+    fetch_parser.add_argument(
+        "--config",
+        type=Path,
+        default=Path("config.yaml"),
+        help="Path to config file (default: config.yaml)"
+    )
     
-    for post in fetcher.fetch_posts():
-        print(f"  Found: r/{post.subreddit} - {post.title[:50]}...")
+    # View command
+    view_parser = subparsers.add_parser("view", help="View posts from database")
+    view_parser.add_argument(
+        "--accepted",
+        action="store_true",
+        help="Show accepted posts"
+    )
+    view_parser.add_argument(
+        "--rejected",
+        action="store_true",
+        help="Show rejected posts"
+    )
+    view_parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Limit number of posts to display"
+    )
+    
+    # Stats command
+    subparsers.add_parser("stats", help="Display database statistics")
+    
+    args = parser.parse_args()
+    
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+    
+    try:
+        if args.command == "fetch":
+            cmd_fetch(config_path=args.config)
         
-        # Check if post already exists
-        if db.post_exists(post.post_id):
-            duplicate_posts_count += 1
-            continue
-        
-        # Score the post
-        scored_post = scorer.score_post(post)
-        
-        # Decide based on score threshold
-        if scored_post.score >= config.min_score:
-            db.save_post(
-                post_id=post.post_id,
-                subreddit=post.subreddit,
-                title=post.title,
-                body=post.body,
-                url=post.url,
-                score=scored_post.score,
-                matched_keywords=scored_post.matched_keywords
+        elif args.command == "view":
+            # Default: show accepted if nothing specified
+            show_accepted = args.accepted or (not args.accepted and not args.rejected)
+            show_rejected = args.rejected
+            cmd_view(
+                show_accepted=show_accepted,
+                show_rejected=show_rejected,
+                limit=args.limit
             )
-            new_posts_count += 1
-            print(f"    ✓ Accepted (score: {scored_post.score}, keywords: {', '.join(scored_post.matched_keywords)})")
-        else:
-            db.save_rejected_post(
-                post_id=post.post_id,
-                subreddit=post.subreddit,
-                title=post.title,
-                body=post.body,
-                url=post.url,
-                score=scored_post.score,
-                matched_keywords=scored_post.matched_keywords
-            )
-            rejected_posts_count += 1
-            print(f"    ✗ Rejected (score: {scored_post.score})")
+        
+        elif args.command == "stats":
+            cmd_stats()
     
-    print()
-    print(f"Summary:")
-    print(f"  New posts saved: {new_posts_count}")
-    print(f"  Posts rejected: {rejected_posts_count}")
-    print(f"  Duplicate posts skipped: {duplicate_posts_count}")
+    except KeyboardInterrupt:
+        print("\n\nInterrupted by user.")
+        sys.exit(130)
+    except Exception as e:
+        print(f"\nError: {e}", file=sys.stderr)
+        raise
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("\n\nInterrupted by user.")
-    except Exception as e:
-        print(f"\nError: {e}")
-        raise
+    main()

@@ -1,3 +1,4 @@
+# src/storage/database.py
 import sqlite3
 from datetime import datetime
 from typing import Optional
@@ -102,3 +103,57 @@ class Database:
                 return True
         except sqlite3.IntegrityError:
             return False
+    
+    def get_all_posts(self, limit: Optional[int] = None) -> list[dict]:
+        """Get all accepted posts, ordered by creation date (newest first)."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            query = "SELECT * FROM posts ORDER BY created_at DESC"
+            if limit:
+                query += f" LIMIT {limit}"
+            
+            cursor.execute(query)
+            return [dict(row) for row in cursor.fetchall()]
+    
+    def get_rejected_posts(self, limit: Optional[int] = None) -> list[dict]:
+        """Get all rejected posts, ordered by rejection date (newest first)."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            query = "SELECT * FROM rejected_posts ORDER BY rejected_at DESC"
+            if limit:
+                query += f" LIMIT {limit}"
+            
+            cursor.execute(query)
+            return [dict(row) for row in cursor.fetchall()]
+    
+    def count_posts(self) -> int:
+        """Count total accepted posts."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM posts")
+            return cursor.fetchone()[0]
+    
+    def count_rejected_posts(self) -> int:
+        """Count total rejected posts."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM rejected_posts")
+            return cursor.fetchone()[0]
+    
+    def get_top_subreddits(self, limit: int = 5) -> list[tuple[str, int]]:
+        """Get top subreddits by post count (accepted posts only)."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """SELECT subreddit, COUNT(*) as count 
+                   FROM posts 
+                   GROUP BY subreddit 
+                   ORDER BY count DESC 
+                   LIMIT ?""",
+                (limit,)
+            )
+            return cursor.fetchall()
