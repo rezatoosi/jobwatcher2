@@ -25,8 +25,8 @@ def cmd_fetch(config_path: Path = Path("config.yaml")):
     db = Database("posts.db")
     
     proxy_url = None
-    # if config.network.proxy:
-    #     proxy_url = config.network.proxy
+    if config.network.proxy:
+        proxy_url = config.network.proxy
     
     fetcher = RedditRSSFetcher(
         subreddits=config.subreddits,
