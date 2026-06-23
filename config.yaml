@@ -39,11 +39,45 @@ keywords:
   too many projects: 15
   subcontracting: 15
 
+ai_providers:
+  enabled: true
+  providers:
+    - name: groq
+      enabled: false
+      api_key: ${GROQ_API_KEY}
+      model: llama-3.3-70b-versatile
+      priority: 2
+    - name: google
+      enabled: false
+      api_key: ${GOOGLE_API_KEY}
+      model: gemini-2.5-flash
+      priority: 3
+    - name: openrouter
+      enabled: true
+      api_key: ${OPENROUTER_API_KEY}
+      model: inclusionai/ling-2.6-flash #qwen/qwen-2.5-7b-instruct
+      priority: 1
+    - name: cerebras
+      enabled: false
+      api_key: ${CEREBRAS_API_KEY}
+      model: gpt-oss-120b
+      priority: 80
+    - name: hyperbolic
+      enabled: false
+      api_key: ${HYPERBOLIC_API_KEY}
+      model: meta-llama/Llama-3.3-70B-Instruct
+      priority: 90
+    - name: together
+      enabled: false
+      api_key: ${TOGETHER_API_KEY}
+      model: meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo
+      priority: 100
+
 min_score: 20
 request_delay: 60
 fetch_limit: 50
 
 network:
   # Leave proxy empty ("") to connect directly without a proxy
-  proxy: "http://172.26.32.1:32541"
+  proxy: "http://127.0.0.1:32541"
   request_timeout: 15
