@@ -40,10 +40,10 @@ def cmd_fetch(config_path: Path = Path("config.yaml")) -> None:
     print()
     print("=== Fetch Summary ===")
     print(f"Total fetched:       {report.total_fetched}")
-    print(f"Filtered out:        {report.filtered_out}")
     print(f"Duplicates skipped:  {report.duplicates}")
-    print(f"Saved as pending:    {report.saved_count}")
+    print(f"Saved as pending:    {report.saved_pending}")
     print("=" * 10)
+
 
 
 def cmd_score(config_path: Path = Path("config.yaml")) -> None:
