@@ -2,9 +2,8 @@
 """Core fetch-and-score pipeline, independent of any interface.
 
 Fetch and scoring are now separate phases:
-- FetchPipeline: fetches posts, applies basic filters, checks duplicates,
-  saves all new posts with status='pending'.
-- ScoringPipeline: loads pending posts, applies keyword + AI scoring,
+- FetchPipeline: fetches posts, checks duplicates, saves all new posts with status='pending'.
+- ScoringPipeline: loads pending posts, applies filter + keyword + AI scoring,
   updates status to 'accepted' or 'rejected' with rejection_reason.
 
 Interfaces are responsible for I/O and presentation; these modules only
@@ -38,7 +37,6 @@ class FetchReport:
     Only reports what was fetched and saved; scoring is a separate phase.
     """
     total_fetched: int = 0
-    filtered_out: int = 0
     duplicates: int = 0
     saved_pending: int = 0
 
@@ -55,9 +53,10 @@ class ScoringReport:
     """Structured result of a scoring run.
     
     `accepted` holds posts marked relevant, `rejected` holds posts that
-    failed keyword threshold or AI relevance check.
+    failed filter, keyword threshold, or AI relevance check.
     """
     total_pending: int = 0
+    filtered_out: int = 0
     keyword_passed: int = 0
     ai_enabled: bool = False
     accepted: list[ScoredPost] = field(default_factory=list)
@@ -73,7 +72,7 @@ class ScoringReport:
 
 
 class FetchPipeline:
-    """Fetch posts from Reddit, apply basic filters, save as pending.
+    """Fetch posts from Reddit, check duplicates, save as pending.
     
     This phase is separate from scoring to avoid re-fetching when scoring
     fails or needs to be re-run with different parameters.
@@ -90,13 +89,12 @@ class FetchPipeline:
             request_delay=config.request_delay,
             proxy_http=proxy_url,
         )
-        self.post_filter = PostFilter(filters=config.filters)
 
     def run(self) -> FetchReport:
-        """Fetch posts, filter, dedupe, and save as pending.
+        """Fetch posts, dedupe, and save as pending.
         
         Returns:
-            FetchReport with counts of fetched, filtered, duplicate, and saved posts.
+            FetchReport with counts of fetched, duplicate, and saved posts.
         """
         report = FetchReport()
 
@@ -105,16 +103,12 @@ class FetchPipeline:
         report.total_fetched = len(posts)
         logger.info(f"Fetched {report.total_fetched} posts")
 
-        # Apply basic filters (length, banned words, etc.)
-        filtered = self.post_filter.filter_posts(posts)
-        report.filtered_out = report.total_fetched - len(filtered)
-        logger.info(f"Filtered out {report.filtered_out} posts")
-        if not filtered:
+        if not posts:
             return report
 
         # Check duplicates
-        unique = [p for p in filtered if not self.db.post_exists(p.post_id)]
-        report.duplicates = len(filtered) - len(unique)
+        unique = [p for p in posts if not self.db.post_exists(p.post_id)]
+        report.duplicates = len(posts) - len(unique)
         logger.info(f"Found {report.duplicates} duplicates")
         if not unique:
             return report
@@ -137,9 +131,9 @@ class FetchPipeline:
 
 
 class ScoringPipeline:
-    """Score pending posts with keyword + AI, update status accordingly.
+    """Score pending posts with filter + keyword + AI, update status accordingly.
     
-    Loads posts with status='pending', applies keyword scoring, then
+    Loads posts with status='pending', applies filter, keyword scoring, then
     optional AI scoring. Updates each post to 'accepted' or 'rejected'
     with appropriate metadata.
     """
@@ -148,6 +142,7 @@ class ScoringPipeline:
         self.config = config
         self.db = db
 
+        self.post_filter = PostFilter(filters=config.filters)
         self.keyword_scorer = KeywordScorer(
             keywords=config.keywords,
             min_score=0.0,
@@ -201,9 +196,32 @@ class ScoringPipeline:
 
         scored_at = datetime.utcnow()
 
-        # Stage 1: keyword scoring (cheap, local)
+        # Stage 1: filter (length, banned words, etc.)
+        filtered = self.post_filter.filter_posts(pending)
+        failed_filter = [p for p in pending if p not in filtered]
+        report.filtered_out = len(failed_filter)
+        logger.info(f"Filter: {len(filtered)} passed, {report.filtered_out} failed")
+
+        # Reject posts that failed filter
+        for post in failed_filter:
+            reason = "failed_basic_filter"
+            self.db.update_post_rejected(
+                post_id=post.post_id,
+                rejection_reason=reason,
+                score=0.0,
+                matched_keywords=[],
+                scored_at=scored_at,
+            )
+            # Wrap as ScoredPost for consistency
+            scored = ScoredPost(post=post, score=0.0, matched_keywords=[])
+            report.rejected.append(RejectedPost(scored, reason))
+
+        if not filtered:
+            return report
+
+        # Stage 2: keyword scoring (cheap, local)
         keyword_scored = [
-            self.keyword_scorer.score_post(p) for p in pending
+            self.keyword_scorer.score_post(p) for p in filtered
         ]
         passed = [
             sp for sp in keyword_scored if sp.score >= self.keyword_threshold
@@ -219,7 +237,7 @@ class ScoringPipeline:
 
         # Reject posts that failed keyword threshold
         for sp in failed_keyword:
-            reason = f"keyword_score_low"
+            reason = "keyword_score_low"
             self.db.update_post_rejected(
                 post_id=sp.post.post_id,
                 rejection_reason=reason,
@@ -245,12 +263,12 @@ class ScoringPipeline:
             logger.info(f"Keyword-only mode: accepted {len(passed)} posts")
             return report
 
-        # Stage 2: AI relevance scoring (expensive, remote)
+        # Stage 3: AI relevance scoring (expensive, remote)
         total = len(passed)
         logger.info(f"Starting AI scoring for {total} posts")
         for idx, kw in enumerate(passed, start=1):
             scored = self.ai_scorer.fake_score_post(kw.post)
-            # Preserve keyword metadata from stage 1
+            # Preserve keyword metadata from stage 2
             scored = replace(scored, matched_keywords=kw.matched_keywords)
             
             if progress is not None:

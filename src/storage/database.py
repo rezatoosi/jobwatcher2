@@ -167,6 +167,15 @@ class Database:
             query += f" LIMIT {limit}"
         cursor = self._conn.execute(query)
         return [self._row_to_dict(row) for row in cursor.fetchall()]
+    
+    def get_posts_by_status(self, status: str, limit: Optional[int] = None) -> list[dict]:
+        """Get all posts with the given status."""
+        query = "SELECT * FROM posts WHERE status = ? ORDER BY fetched_at DESC"
+        if limit:
+            query += f" LIMIT {limit}"
+        cursor = self._conn.execute(query, (status,))
+        return [self._row_to_dict(row) for row in cursor.fetchall()]
+
 
     def count_posts_by_status(self, status: str) -> int:
         """Count posts by status."""
