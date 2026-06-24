@@ -2,6 +2,7 @@
 """Main entry point for Reddit post monitoring CLI."""
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
@@ -14,11 +15,38 @@ from src.interfaces.cli.commands import (
 )
 
 
+def setup_logging(verbose: bool = False):
+    """Configure console and file logging."""
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.DEBUG if verbose else logging.INFO)
+    console_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+
+    file_handler = logging.FileHandler(log_dir / "app.log", encoding="utf-8")
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    ))
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+    root_logger.addHandler(console_handler)
+    root_logger.addHandler(file_handler)
+
+
 def main():
     """Run the Reddit post monitoring CLI."""
     parser = argparse.ArgumentParser(
         description="Reddit Job Post Monitor - Track and score job posts from subreddits",
         formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Enable verbose (DEBUG) logging"
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -78,6 +106,8 @@ def main():
     subparsers.add_parser("stats", help="Display database statistics")
 
     args = parser.parse_args()
+
+    setup_logging(verbose=args.verbose)
 
     if not args.command:
         parser.print_help()
