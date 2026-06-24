@@ -1,14 +1,19 @@
 # src/interfaces/core/pipeline.py
 """Core fetch-and-score pipeline, independent of any interface.
 
-The same flow can be driven by the CLI, a scheduled job, or an HTTP
-endpoint without duplication. Interfaces are responsible for I/O and
-presentation; this module only orchestrates fetch -> filter -> dedupe
--> keyword gate -> AI relevance, and reports structured results.
+Fetch and scoring are now separate phases:
+- FetchPipeline: fetches posts, applies basic filters, checks duplicates,
+  saves all new posts with status='pending'.
+- ScoringPipeline: loads pending posts, applies keyword + AI scoring,
+  updates status to 'accepted' or 'rejected' with rejection_reason.
+
+Interfaces are responsible for I/O and presentation; these modules only
+orchestrate the domain logic and report structured results.
 """
 
 import logging
 from dataclasses import dataclass, field, replace
+from datetime import datetime
 from typing import Callable, Optional
 
 from src.ai.manager import AIProviderManager
@@ -27,6 +32,18 @@ ProgressCallback = Callable[[int, int, ScoredPost], None]
 
 
 @dataclass
+class FetchReport:
+    """Structured result of a fetch run.
+    
+    Only reports what was fetched and saved; scoring is a separate phase.
+    """
+    total_fetched: int = 0
+    filtered_out: int = 0
+    duplicates: int = 0
+    saved_pending: int = 0
+
+
+@dataclass
 class RejectedPost:
     """Wrapper for a rejected post with its rejection reason."""
     scored_post: ScoredPost
@@ -34,17 +51,13 @@ class RejectedPost:
 
 
 @dataclass
-class FetchReport:
-    """Structured result of a single pipeline run.
-
-    `accepted` holds the final kept posts (is_relevant=1, or keyword-passed
-    when AI is disabled). `rejected` holds everything dropped after the
-    keyword stage (keyword-failed plus AI-irrelevant), preserved for audit.
+class ScoringReport:
+    """Structured result of a scoring run.
+    
+    `accepted` holds posts marked relevant, `rejected` holds posts that
+    failed keyword threshold or AI relevance check.
     """
-
-    total_fetched: int = 0
-    filtered_out: int = 0
-    duplicates: int = 0
+    total_pending: int = 0
     keyword_passed: int = 0
     ai_enabled: bool = False
     accepted: list[ScoredPost] = field(default_factory=list)
@@ -60,12 +73,10 @@ class FetchReport:
 
 
 class FetchPipeline:
-    """Build the processing stages from config and run them on demand.
-
-    Wiring is done once in the constructor; `run` is side-effect free
-    except for network calls, and `persist` is the only DB-writing step.
-    The AI stage is optional: if the AI layer is disabled or has no usable
-    provider, the keyword gate becomes the final accept decision.
+    """Fetch posts from Reddit, apply basic filters, save as pending.
+    
+    This phase is separate from scoring to avoid re-fetching when scoring
+    fails or needs to be re-run with different parameters.
     """
 
     def __init__(self, config: AppConfig, db: Database) -> None:
@@ -80,14 +91,70 @@ class FetchPipeline:
             proxy_http=proxy_url,
         )
         self.post_filter = PostFilter(filters=config.filters)
+
+    def run(self) -> FetchReport:
+        """Fetch posts, filter, dedupe, and save as pending.
+        
+        Returns:
+            FetchReport with counts of fetched, filtered, duplicate, and saved posts.
+        """
+        report = FetchReport()
+
+        # Fetch from Reddit
+        posts = self.fetcher.fetch_posts()
+        report.total_fetched = len(posts)
+        logger.info(f"Fetched {report.total_fetched} posts")
+
+        # Apply basic filters (length, banned words, etc.)
+        filtered = self.post_filter.filter_posts(posts)
+        report.filtered_out = report.total_fetched - len(filtered)
+        logger.info(f"Filtered out {report.filtered_out} posts")
+        if not filtered:
+            return report
+
+        # Check duplicates
+        unique = [p for p in filtered if not self.db.post_exists(p.post_id)]
+        report.duplicates = len(filtered) - len(unique)
+        logger.info(f"Found {report.duplicates} duplicates")
+        if not unique:
+            return report
+
+        # Save all unique posts with status='pending'
+        fetched_at = datetime.utcnow()
+        for post in unique:
+            self.db.save_fetched_post(
+                post_id=post.post_id,
+                subreddit=post.subreddit,
+                title=post.title,
+                body=post.body,
+                url=post.url,
+                fetched_at=fetched_at,
+            )
+        report.saved_pending = len(unique)
+        logger.info(f"Saved {report.saved_pending} posts as pending")
+
+        return report
+
+
+class ScoringPipeline:
+    """Score pending posts with keyword + AI, update status accordingly.
+    
+    Loads posts with status='pending', applies keyword scoring, then
+    optional AI scoring. Updates each post to 'accepted' or 'rejected'
+    with appropriate metadata.
+    """
+
+    def __init__(self, config: AppConfig, db: Database) -> None:
+        self.config = config
+        self.db = db
+
         self.keyword_scorer = KeywordScorer(
             keywords=config.keywords,
             min_score=0.0,
         )
         self.keyword_threshold = config.scoring.keyword_threshold
 
-        # The manager self-reports usability via `.enabled`; only build an
-        # AI scorer when there is at least one configured, enabled provider.
+        # Build AI scorer if any provider is available
         self.ai_manager = AIProviderManager(config.ai_providers, config.network)
         self.ai_scorer: Optional[AIScorer] = None
         if self.ai_manager.enabled:
@@ -98,14 +165,7 @@ class FetchPipeline:
 
     @staticmethod
     def _build_system_prompt(config: AppConfig) -> str:
-        """Fill the configured prompt template.
-
-        The prompt is supplied entirely by config to keep the AI layer
-        domain-agnostic. The only substitution is the optional {skills}
-        placeholder, filled from the keyword list. If the template uses
-        placeholders we don't provide, it is passed through unchanged
-        rather than failing the run.
-        """
+        """Fill the configured prompt template with keywords."""
         template = config.scoring.ai_system_prompt
         if not template:
             return ""
@@ -114,98 +174,120 @@ class FetchPipeline:
             return template.format(skills=skills)
         except (KeyError, IndexError, ValueError):
             logger.warning(
-                "ai_system_prompt has unsupported placeholders; "
-                "using it verbatim"
+                "ai_system_prompt has unsupported placeholders; using verbatim"
             )
             return template
 
-    def run(self, progress: Optional[ProgressCallback] = None) -> FetchReport:
-        """Execute the full pipeline and return a structured report.
-
+    def run(self, progress: Optional[ProgressCallback] = None) -> ScoringReport:
+        """Score all pending posts and update their status.
+        
+        Args:
+            progress: Optional callback for AI scoring progress.
+            
+        Returns:
+            ScoringReport with accepted and rejected counts and details.
+            
         Raises:
-            AIScoringError: AI provider failed repeatedly; the batch is
-                aborted by the AI scorer and the error propagates here.
+            AIScoringError: AI provider failed repeatedly.
         """
-        report = FetchReport(ai_enabled=self.ai_scorer is not None)
+        report = ScoringReport(ai_enabled=self.ai_scorer is not None)
 
-        posts = self.fetcher.fetch_posts()
-        report.total_fetched = len(posts)
-
-        filtered = self.post_filter.filter_posts(posts)
-        report.filtered_out = report.total_fetched - len(filtered)
-        if not filtered:
+        # Load pending posts
+        pending = self.db.get_pending_posts()
+        report.total_pending = len(pending)
+        logger.info(f"Loaded {report.total_pending} pending posts")
+        if not pending:
             return report
 
-        unique = [p for p in filtered if not self.db.post_exists(p.post_id)]
-        report.duplicates = len(filtered) - len(unique)
-        if not unique:
-            return report
+        scored_at = datetime.utcnow()
 
-        # Stage 1: keyword gate (cheap, local).
-        keyword_scored = [self.keyword_scorer.score_post(p) for p in unique]
+        # Stage 1: keyword scoring (cheap, local)
+        keyword_scored = [
+            self.keyword_scorer.score_post(p) for p in pending
+        ]
         passed = [
             sp for sp in keyword_scored if sp.score >= self.keyword_threshold
         ]
-        report.rejected.extend(
-            RejectedPost(sp, f"keyword_score_below_threshold (score: {sp.score:.2f}, threshold: {self.keyword_threshold})")
-            for sp in keyword_scored if sp.score < self.keyword_threshold
-        )
+        failed_keyword = [
+            sp for sp in keyword_scored if sp.score < self.keyword_threshold
+        ]
+        
         report.keyword_passed = len(passed)
+        logger.info(
+            f"Keyword scoring: {len(passed)} passed, {len(failed_keyword)} failed"
+        )
+
+        # Reject posts that failed keyword threshold
+        for sp in failed_keyword:
+            reason = f"keyword_score_low"
+            self.db.update_post_rejected(
+                post_id=sp.post.post_id,
+                rejection_reason=reason,
+                score=sp.score,
+                matched_keywords=sp.matched_keywords,
+                scored_at=scored_at,
+            )
+            report.rejected.append(RejectedPost(sp, reason))
+
         if not passed:
             return report
 
-        # Keyword-only mode: the gate is the final accept decision.
+        # Keyword-only mode: accept all that passed keyword threshold
         if self.ai_scorer is None:
-            report.accepted = sorted(
-                passed, key=lambda sp: sp.score, reverse=True
-            )
+            for sp in passed:
+                self.db.update_post_accepted(
+                    post_id=sp.post.post_id,
+                    score=sp.score,
+                    matched_keywords=sp.matched_keywords,
+                    scored_at=scored_at,
+                )
+                report.accepted.append(sp)
+            logger.info(f"Keyword-only mode: accepted {len(passed)} posts")
             return report
 
-        # Stage 2: AI relevance decision (expensive, remote).
+        # Stage 2: AI relevance scoring (expensive, remote)
         total = len(passed)
+        logger.info(f"Starting AI scoring for {total} posts")
         for idx, kw in enumerate(passed, start=1):
             scored = self.ai_scorer.fake_score_post(kw.post)
-            # ScoredPost is frozen; rebuild it with the stage-1 keyword hits.
+            # Preserve keyword metadata from stage 1
             scored = replace(scored, matched_keywords=kw.matched_keywords)
+            
             if progress is not None:
                 progress(idx, total, scored)
 
-            if scored.ai_metadata and scored.ai_metadata.get("is_relevant") == 1:
+            is_relevant = (
+                scored.ai_metadata 
+                and scored.ai_metadata.get("is_relevant") == 1
+            )
+
+            if is_relevant:
+                self.db.update_post_accepted(
+                    post_id=scored.post.post_id,
+                    score=scored.score,
+                    matched_keywords=scored.matched_keywords,
+                    ai_metadata=scored.ai_metadata,
+                    scored_at=scored_at,
+                )
                 report.accepted.append(scored)
             else:
-                reason = "ai_marked_irrelevant"
+                reason = "ai_rejected"
                 if scored.ai_metadata:
                     ai_reason = scored.ai_metadata.get("reason", "")
                     if ai_reason:
-                        reason = f"ai_marked_irrelevant: {ai_reason}"
+                        reason = f"ai_rejected: {ai_reason}"
+                self.db.update_post_rejected(
+                    post_id=scored.post.post_id,
+                    rejection_reason=reason,
+                    score=scored.score,
+                    matched_keywords=scored.matched_keywords,
+                    ai_metadata=scored.ai_metadata,
+                    scored_at=scored_at,
+                )
                 report.rejected.append(RejectedPost(scored, reason))
 
-        report.accepted.sort(key=lambda sp: sp.score, reverse=True)
+        logger.info(
+            f"AI scoring complete: {len(report.accepted)} accepted, "
+            f"{len(report.rejected)} rejected"
+        )
         return report
-
-    def persist(self, report: FetchReport) -> None:
-        """Write accepted and rejected posts to the database."""
-        for sp in report.accepted:
-            self.db.save_post(
-                post_id=sp.post.post_id,
-                subreddit=sp.post.subreddit,
-                title=sp.post.title,
-                body=sp.post.body,
-                url=sp.post.url,
-                score=sp.score,
-                matched_keywords=sp.matched_keywords,
-                ai_metadata=sp.ai_metadata,
-            )
-        for rp in report.rejected:
-            sp = rp.scored_post
-            self.db.save_rejected_post(
-                post_id=sp.post.post_id,
-                subreddit=sp.post.subreddit,
-                title=sp.post.title,
-                body=sp.post.body,
-                url=sp.post.url,
-                score=sp.score,
-                matched_keywords=sp.matched_keywords,
-                ai_metadata=sp.ai_metadata,
-                rejection_reason=rp.reason,
-            )
