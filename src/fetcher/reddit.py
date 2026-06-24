@@ -79,17 +79,20 @@ class RedditFetcher:
         """Fetch posts from all configured subreddits."""
         all_posts = []
         
-        for subreddit in self.subreddits:
+        for idx, subreddit in enumerate(self.subreddits):
+            if idx > 0:
+                time.sleep(self.request_delay)
+            
             try:
                 posts = self._fetch_subreddit(subreddit)
                 all_posts.extend(posts)
                 logger.info(f"Fetched {len(posts)} posts from r/{subreddit}")
-                time.sleep(self.request_delay)
             except Exception as e:
                 logger.error(f"Failed to fetch r/{subreddit}: {e}")
                 continue
         
         return all_posts
+
 
     def _fetch_subreddit(self, subreddit: str) -> list[RedditPost]:
         """Fetch posts from a single subreddit using JSON API."""
@@ -167,12 +170,14 @@ class RedditRSSFetcher:
         """Fetch posts from all configured subreddits."""
         all_posts = []
         
-        for subreddit in self.subreddits:
+        for idx, subreddit in enumerate(self.subreddits):
+            if idx > 0:
+                time.sleep(self.request_delay)
+            
             try:
                 posts = self._fetch_subreddit(subreddit)
                 all_posts.extend(posts)
                 logger.info(f"Fetched {len(posts)} posts from r/{subreddit} via RSS")
-                time.sleep(self.request_delay)
             except Exception as e:
                 logger.error(f"Failed to fetch r/{subreddit} via RSS: {e}")
                 continue
