@@ -1,4 +1,4 @@
-# src/filtering/post_filter.py
+# src/filtering/filter.py
 from typing import Optional
 from src.fetcher.reddit import RedditPost
 

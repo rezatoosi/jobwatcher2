@@ -14,7 +14,7 @@ from typing import Callable, Optional
 from src.ai.manager import AIProviderManager
 from src.config.loader import AppConfig
 from src.fetcher.reddit import RedditRSSFetcher
-from src.filtering.post_filter import PostFilter
+from src.scoring.filter import PostFilter
 from src.scoring.ai import AIScorer
 from src.scoring.base import ScoredPost
 from src.scoring.keyword import KeywordScorer
