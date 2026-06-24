@@ -1,3 +1,4 @@
+# src/interfaces/cli/commands.py
 """CLI commands for Reddit post monitoring.
 
 These are thin presentation wrappers: they load config, drive the core
@@ -9,7 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 from src.config import load_config
-from src.interfaces.core.pipeline import FetchPipeline, ScoredPost
+from src.interfaces.core.pipeline import FetchPipeline, ScoringPipeline, ScoredPost
 from src.scoring.ai import AIScoringError
 from src.storage.database import Database
 
@@ -17,21 +18,48 @@ _DB_PATH = "posts.db"
 
 
 def cmd_fetch(config_path: Path = Path("config.yaml")) -> None:
-    """Fetch new posts from Reddit and process them through the pipeline."""
+    """Fetch new posts from Reddit and save as pending."""
     config = load_config(config_path)
 
     print("Configuration loaded:")
     print(f"  Subreddits: {', '.join(config.subreddits)}")
-    print(f"  Keywords: {len(config.keywords)} keywords")
-    print(f"  Keyword threshold: {config.scoring.keyword_threshold}")
     print(f"  Fetch limit: {config.fetch_limit}")
+    print()
 
     db = Database(_DB_PATH)
     pipeline = FetchPipeline(config, db)
 
+    print("Fetching posts from Reddit...")
+
+    try:
+        report = pipeline.run()
+    except Exception as e:
+        print(f"  ✗ Error during fetch: {e}")
+        return
+
+    print()
+    print("=== Fetch Summary ===")
+    print(f"Total fetched:       {report.total_fetched}")
+    print(f"Filtered out:        {report.filtered_out}")
+    print(f"Duplicates skipped:  {report.duplicates}")
+    print(f"Saved as pending:    {report.saved_count}")
+    print("=" * 10)
+
+
+def cmd_score(config_path: Path = Path("config.yaml")) -> None:
+    """Score pending posts with keyword + AI scoring."""
+    config = load_config(config_path)
+
+    print("Configuration loaded:")
+    print(f"  Keywords: {len(config.keywords)} keywords")
+    print(f"  Keyword threshold: {config.scoring.keyword_threshold}")
+
+    db = Database(_DB_PATH)
+    pipeline = ScoringPipeline(config, db)
+
     print(f"  AI scoring: {'enabled' if pipeline.ai_scorer else 'disabled'}")
     print()
-    print("Fetching posts from Reddit...")
+    print("Scoring pending posts...")
 
     def _on_ai_scored(idx: int, total: int, scored: ScoredPost) -> None:
         post = scored.post
@@ -47,10 +75,8 @@ def cmd_fetch(config_path: Path = Path("config.yaml")) -> None:
         print(f"  ✗ AI scoring aborted, batch stopped: {e}")
         return
     except Exception as e:
-        print(f"  ✗ Error during fetch: {e}")
+        print(f"  ✗ Error during scoring: {e}")
         return
-
-    pipeline.persist(report)
 
     if report.accepted:
         print()
@@ -62,19 +88,27 @@ def cmd_fetch(config_path: Path = Path("config.yaml")) -> None:
             print(f"    Score: {sp.score} | Keywords: {keywords}")
 
     print()
-    print("=== Fetch Summary ===\n")
-    print(f"Total fetched:       {report.total_fetched}")
-    print(f"Filtered out:        {report.filtered_out}")
-    print(f"Duplicates skipped:  {report.duplicates}")
+    print("=== Scoring Summary ===")
+    print(f"Pending processed:   {report.total_processed}")
     print(f"Keyword passed:      {report.keyword_passed}")
     print(f"Accepted:            {report.accepted_count}")
     print(f"Rejected:            {report.rejected_count}")
     print("=" * 10)
 
 
+def cmd_run(config_path: Path = Path("config.yaml")) -> None:
+    """Run both fetch and score pipelines sequentially."""
+    print("Running fetch pipeline...")
+    cmd_fetch(config_path)
+    print()
+    print("Running scoring pipeline...")
+    cmd_score(config_path)
+
+
 def cmd_view(
     show_accepted: bool = True,
     show_rejected: bool = False,
+    show_pending: bool = False,
     limit: Optional[int] = None,
 ) -> None:
     """View posts from database."""
@@ -82,7 +116,7 @@ def cmd_view(
 
     if show_accepted:
         print("=== Accepted Posts ===\n")
-        posts = db.get_all_posts(limit=limit)
+        posts = db.get_posts_by_status("accepted", limit=limit)
         if not posts:
             print("No accepted posts found.\n")
         else:
@@ -99,7 +133,7 @@ def cmd_view(
 
     if show_rejected:
         print("=== Rejected Posts ===\n")
-        posts = db.get_rejected_posts(limit=limit)
+        posts = db.get_posts_by_status("rejected", limit=limit)
         if not posts:
             print("No rejected posts found.\n")
         else:
@@ -107,7 +141,19 @@ def cmd_view(
                 print(f"{idx}. [/r/{post['subreddit']}]: {post['title']}")
                 print(f"   Score: {post['score']} | Keywords: {post['matched_keywords']}")
                 print(f"   URL: {post['url']}")
-                print(f"   Rejected: {post['rejected_at']}")
+                print(f"   Updated: {post['updated_at']}")
+                print()
+
+    if show_pending:
+        print("=== Pending Posts ===\n")
+        posts = db.get_posts_by_status("pending", limit=limit)
+        if not posts:
+            print("No pending posts found.\n")
+        else:
+            for idx, post in enumerate(posts, 1):
+                print(f"{idx}. [/r/{post['subreddit']}]: {post['title']}")
+                print(f"   URL: {post['url']}")
+                print(f"   Created: {post['created_at']}")
                 print()
 
 
@@ -115,13 +161,15 @@ def cmd_stats() -> None:
     """Display database statistics."""
     db = Database(_DB_PATH)
 
-    accepted_count = db.count_posts()
-    rejected_count = db.count_rejected_posts()
+    accepted_count = db.count_posts_by_status("accepted")
+    rejected_count = db.count_posts_by_status("rejected")
+    pending_count = db.count_posts_by_status("pending")
 
     print("=== Database Statistics ===\n")
     print(f"Accepted posts: {accepted_count}")
     print(f"Rejected posts: {rejected_count}")
-    print(f"Total posts: {accepted_count + rejected_count}")
+    print(f"Pending posts:  {pending_count}")
+    print(f"Total posts:    {accepted_count + rejected_count + pending_count}")
     print()
 
     top_subreddits = db.get_top_subreddits(limit=5)
