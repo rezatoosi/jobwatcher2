@@ -96,7 +96,7 @@ ai_providers:
       priority: 100
 
 request_delay: 60
-fetch_limit: 50
+fetch_limit: 30
 
 network:
   # Leave proxy empty ("") to connect directly without a proxy
