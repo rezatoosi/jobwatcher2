@@ -1,5 +1,5 @@
 posts.db
-./*.db
+/*.db
 /logs
 
 # Byte-compiled / optimized / DLL files
