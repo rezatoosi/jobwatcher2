@@ -1,8 +1,7 @@
 # src/scoring/keyword.py
 """Keyword-based scoring for Reddit posts."""
 
-from src.fetcher.reddit import RedditPost
-from src.scoring.base import BaseScorer, ScoredPost
+from src.scoring.base import BaseScorer, ScoredPost, ScorablePost
 
 
 class KeywordScorer(BaseScorer):
@@ -19,12 +18,12 @@ class KeywordScorer(BaseScorer):
         super().__init__(min_score)
         self.keywords = {k.lower(): v for k, v in keywords.items()}
     
-    def score_post(self, post: RedditPost) -> ScoredPost:
+    def score_post(self, post: ScorablePost) -> ScoredPost:
         """
         Score a post by matching keywords in title and body.
         
         Args:
-            post: Reddit post to score
+            post: Post to score
             
         Returns:
             Scored post with matched keywords

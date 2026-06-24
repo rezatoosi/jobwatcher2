@@ -45,7 +45,6 @@ def cmd_fetch(config_path: Path = Path("config.yaml")) -> None:
     print("=" * 10)
 
 
-
 def cmd_score(config_path: Path = Path("config.yaml")) -> None:
     """Score pending posts with keyword + AI scoring."""
     config = load_config(config_path)
@@ -89,7 +88,7 @@ def cmd_score(config_path: Path = Path("config.yaml")) -> None:
 
     print()
     print("=== Scoring Summary ===")
-    print(f"Pending processed:   {report.total_processed}")
+    print(f"Pending processed:   {report.total_pending}")
     print(f"Keyword passed:      {report.keyword_passed}")
     print(f"Accepted:            {report.accepted_count}")
     print(f"Rejected:            {report.rejected_count}")
@@ -121,13 +120,14 @@ def cmd_view(
             print("No accepted posts found.\n")
         else:
             for idx, post in enumerate(posts, 1):
-                print(f"{idx}. [/r/{post['subreddit']}]: {post['title']}")
-                print(f"   Score: {post['score']} | Keywords: {post['matched_keywords']}")
-                print(f"   URL: {post['url']}")
-                print(f"   Created: {post['created_at']}")
-                if post['body']:
-                    body_preview = post['body'][:150].replace('\n', ' ')
-                    suffix = '...' if len(post['body']) > 150 else ''
+                keywords = ", ".join(post.matched_keywords)
+                print(f"{idx}. [/r/{post.subreddit}]: {post.title}")
+                print(f"   Score: {post.score} | Keywords: {keywords}")
+                print(f"   URL: {post.url}")
+                print(f"   Scored at: {post.scored_at}")
+                if post.body:
+                    body_preview = post.body[:150].replace("\n", " ")
+                    suffix = "..." if len(post.body) > 150 else ""
                     print(f"   Body: {body_preview}{suffix}")
                 print()
 
@@ -138,10 +138,13 @@ def cmd_view(
             print("No rejected posts found.\n")
         else:
             for idx, post in enumerate(posts, 1):
-                print(f"{idx}. [/r/{post['subreddit']}]: {post['title']}")
-                print(f"   Score: {post['score']} | Keywords: {post['matched_keywords']}")
-                print(f"   URL: {post['url']}")
-                print(f"   Updated: {post['updated_at']}")
+                keywords = ", ".join(post.matched_keywords)
+                print(f"{idx}. [/r/{post.subreddit}]: {post.title}")
+                print(f"   Score: {post.score} | Keywords: {keywords}")
+                print(f"   URL: {post.url}")
+                print(f"   Scored at: {post.scored_at}")
+                if post.rejection_reason:
+                    print(f"   Reason: {post.rejection_reason}")
                 print()
 
     if show_pending:
@@ -151,9 +154,9 @@ def cmd_view(
             print("No pending posts found.\n")
         else:
             for idx, post in enumerate(posts, 1):
-                print(f"{idx}. [/r/{post['subreddit']}]: {post['title']}")
-                print(f"   URL: {post['url']}")
-                print(f"   Created: {post['created_at']}")
+                print(f"{idx}. [/r/{post.subreddit}]: {post.title}")
+                print(f"   URL: {post.url}")
+                print(f"   Fetched at: {post.fetched_at}")
                 print()
 
 
@@ -161,9 +164,10 @@ def cmd_stats() -> None:
     """Display database statistics."""
     db = Database(_DB_PATH)
 
-    accepted_count = db.count_posts_by_status("accepted")
-    rejected_count = db.count_posts_by_status("rejected")
-    pending_count = db.count_posts_by_status("pending")
+    counts = db.count_posts_by_status()
+    accepted_count = counts.get("accepted", 0)
+    rejected_count = counts.get("rejected", 0)
+    pending_count = counts.get("pending", 0)
 
     print("=== Database Statistics ===\n")
     print(f"Accepted posts: {accepted_count}")

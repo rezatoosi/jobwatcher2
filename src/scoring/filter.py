@@ -1,6 +1,7 @@
 # src/filtering/filter.py
-from typing import Optional
-from src.fetcher.reddit import RedditPost
+"""Pre-filter posts based on subreddit-specific rules before scoring."""
+
+from src.scoring.base import ScorablePost
 
 
 class PostFilter:
@@ -21,19 +22,9 @@ class PostFilter:
         """
         self.filters = filters or {}
     
-    def should_process(self, post: RedditPost) -> bool:
-        """
-        Check if a post should proceed to scoring stage.
-        
-        Args:
-            post: Reddit post to filter
-        
-        Returns:
-            True if post passes filters (or no filter defined for subreddit)
-        """
+    def should_process(self, post: ScorablePost) -> bool:
         subreddit = post.subreddit.lower()
         
-        # If no filter defined for this subreddit, allow it
         if subreddit not in self.filters:
             return True
         
@@ -41,25 +32,23 @@ class PostFilter:
         title_lower = post.title.lower()
         
         # Check must_contain rules
-        if "title_must_contain" in filter_rules:
-            must_contain = filter_rules["title_must_contain"]
-            if not any(phrase.lower() in title_lower for phrase in must_contain):
+        if filter_rules.title_must_contain:
+            if not any(phrase.lower() in title_lower for phrase in filter_rules.title_must_contain):
                 return False
         
         # Check must_not_contain rules
-        if "title_must_not_contain" in filter_rules:
-            must_not_contain = filter_rules["title_must_not_contain"]
-            if any(phrase.lower() in title_lower for phrase in must_not_contain):
+        if filter_rules.title_must_not_contain:
+            if any(phrase.lower() in title_lower for phrase in filter_rules.title_must_not_contain):
                 return False
         
         return True
     
-    def filter_posts(self, posts: list[RedditPost]) -> list[RedditPost]:
+    def filter_posts(self, posts: list[ScorablePost]) -> list[ScorablePost]:
         """
         Filter a list of posts, returning only those that pass rules.
         
         Args:
-            posts: List of Reddit posts
+            posts: List of posts
         
         Returns:
             Filtered list of posts

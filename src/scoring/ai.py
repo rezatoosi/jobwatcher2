@@ -8,8 +8,7 @@ import time
 from typing import Optional
 
 from src.ai.manager import AIProviderManager
-from src.fetcher.reddit import RedditPost
-from src.scoring.base import BaseScorer, ScoredPost
+from src.scoring.base import BaseScorer, ScoredPost, ScorablePost
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +63,7 @@ class AIScorer(BaseScorer):
         self.max_retries = max_retries
         self.retry_delay = retry_delay
 
-    def score_post(self, post: RedditPost) -> ScoredPost:
+    def score_post(self, post: ScorablePost) -> ScoredPost:
         """Score a single post via the AI provider.
 
         Returns a ScoredPost. On a JSON parse/validation failure, returns a
@@ -114,11 +113,11 @@ class AIScorer(BaseScorer):
             ai_metadata=metadata,
         )
 
-    def fake_score_post(self, post: RedditPost) -> ScoredPost:
+    def fake_score_post(self, post: ScorablePost) -> ScoredPost:
         """Simulate AIScorer.score_post for testing without calling real AI API.
         
         Args:
-            post: The Reddit post to score
+            post: The post to score
         
         Returns:
             ScoredPost with fake AI metadata
@@ -142,8 +141,7 @@ class AIScorer(BaseScorer):
             }
         )
 
-
-    def _send_with_retry(self, user_prompt: str, post: RedditPost):
+    def _send_with_retry(self, user_prompt: str, post: ScorablePost):
         """Send a request, retrying on provider/request failure.
 
         The manager already handles provider fallback internally and reports
@@ -182,7 +180,7 @@ class AIScorer(BaseScorer):
             f"AI provider failed after {self.max_retries} attempts: {last_error}"
         )
 
-    def _build_user_prompt(self, post: RedditPost) -> str:
+    def _build_user_prompt(self, post: ScorablePost) -> str:
         """Build the user prompt from a post's title and body."""
         body = post.body or ""
         return f"Title: {post.title}\n\nBody: {body}"
