@@ -1,3 +1,4 @@
+# src/ai/test_ai.py
 """Minimal AI provider test."""
 
 import sys
@@ -20,11 +21,11 @@ def test_ai_basic():
     config_path = project_root / "config.yaml"
     config = load_config(config_path)
     
-    if not config.ai or not config.ai.enabled:
+    if not config.ai_providers or not config.ai_providers.enabled:
         print("AI is disabled in config")
         return
     
-    manager = AIProviderManager(config.ai, config.network)
+    manager = AIProviderManager(config.ai_providers, config.network)
     
     if not manager.enabled:
         print("No enabled providers found")

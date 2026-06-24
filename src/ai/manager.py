@@ -1,3 +1,4 @@
+# src/ai/manager.py
 """Manage multiple AI providers with priority-based selection and fallback."""
 
 import logging

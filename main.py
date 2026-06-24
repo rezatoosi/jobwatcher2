@@ -5,7 +5,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from src.cli.commands import cmd_fetch, cmd_stats, cmd_view
+# from src.cli.commands import cmd_fetch, cmd_stats, cmd_view
+from src.interfaces.cli.commands import cmd_fetch, cmd_stats, cmd_view
 
 
 def main():

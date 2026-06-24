@@ -1,4 +1,5 @@
 # src/storage/database.py
+import json
 import sqlite3
 from datetime import datetime
 from typing import Optional
@@ -24,6 +25,7 @@ class Database:
                     url TEXT NOT NULL,
                     score REAL NOT NULL,
                     matched_keywords TEXT NOT NULL,
+                    ai_metadata TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -38,9 +40,17 @@ class Database:
                     url TEXT NOT NULL,
                     score REAL NOT NULL,
                     matched_keywords TEXT NOT NULL,
+                    ai_metadata TEXT,
+                    rejection_reason TEXT,
                     rejected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            
+            # Add rejection_reason column if it doesn't exist (migration)
+            cursor.execute("PRAGMA table_info(rejected_posts)")
+            columns = [col[1] for col in cursor.fetchall()]
+            if "rejection_reason" not in columns:
+                cursor.execute("ALTER TABLE rejected_posts ADD COLUMN rejection_reason TEXT")
             
             conn.commit()
     
@@ -62,7 +72,8 @@ class Database:
         body: Optional[str],
         url: str,
         score: float,
-        matched_keywords: list[str]
+        matched_keywords: list[str],
+        ai_metadata: Optional[dict] = None
     ) -> bool:
         """Save an accepted post to the database. Returns True if successful."""
         try:
@@ -70,9 +81,18 @@ class Database:
                 cursor = conn.cursor()
                 cursor.execute(
                     """INSERT INTO posts 
-                       (post_id, subreddit, title, body, url, score, matched_keywords) 
-                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                    (post_id, subreddit, title, body, url, score, ",".join(matched_keywords))
+                       (post_id, subreddit, title, body, url, score, matched_keywords, ai_metadata) 
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        post_id,
+                        subreddit,
+                        title,
+                        body,
+                        url,
+                        score,
+                        ",".join(matched_keywords),
+                        json.dumps(ai_metadata) if ai_metadata is not None else None
+                    )
                 )
                 conn.commit()
                 return True
@@ -87,7 +107,9 @@ class Database:
         body: Optional[str],
         url: str,
         score: float,
-        matched_keywords: list[str]
+        matched_keywords: list[str],
+        ai_metadata: Optional[dict] = None,
+        rejection_reason: Optional[str] = None
     ) -> bool:
         """Save a rejected post for audit. Returns True if successful."""
         try:
@@ -95,9 +117,19 @@ class Database:
                 cursor = conn.cursor()
                 cursor.execute(
                     """INSERT INTO rejected_posts 
-                       (post_id, subreddit, title, body, url, score, matched_keywords) 
-                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                    (post_id, subreddit, title, body, url, score, ",".join(matched_keywords))
+                       (post_id, subreddit, title, body, url, score, matched_keywords, ai_metadata, rejection_reason) 
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        post_id,
+                        subreddit,
+                        title,
+                        body,
+                        url,
+                        score,
+                        ",".join(matched_keywords),
+                        json.dumps(ai_metadata) if ai_metadata is not None else None,
+                        rejection_reason
+                    )
                 )
                 conn.commit()
                 return True
@@ -115,7 +147,7 @@ class Database:
                 query += f" LIMIT {limit}"
             
             cursor.execute(query)
-            return [dict(row) for row in cursor.fetchall()]
+            return [self._row_to_dict(row) for row in cursor.fetchall()]
     
     def get_rejected_posts(self, limit: Optional[int] = None) -> list[dict]:
         """Get all rejected posts, ordered by rejection date (newest first)."""
@@ -128,7 +160,15 @@ class Database:
                 query += f" LIMIT {limit}"
             
             cursor.execute(query)
-            return [dict(row) for row in cursor.fetchall()]
+            return [self._row_to_dict(row) for row in cursor.fetchall()]
+    
+    @staticmethod
+    def _row_to_dict(row: sqlite3.Row) -> dict:
+        """Convert a row to a dict, deserializing ai_metadata from JSON."""
+        record = dict(row)
+        raw = record.get("ai_metadata")
+        record["ai_metadata"] = json.loads(raw) if raw else None
+        return record
     
     def count_posts(self) -> int:
         """Count total accepted posts."""
@@ -155,5 +195,18 @@ class Database:
                    ORDER BY count DESC 
                    LIMIT ?""",
                 (limit,)
+            )
+            return cursor.fetchall()
+    
+    def get_rejection_stats(self) -> list[tuple[str, int]]:
+        """Get rejection reasons with counts, ordered by frequency."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """SELECT rejection_reason, COUNT(*) as count 
+                   FROM rejected_posts 
+                   WHERE rejection_reason IS NOT NULL
+                   GROUP BY rejection_reason 
+                   ORDER BY count DESC"""
             )
             return cursor.fetchall()

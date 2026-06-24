@@ -39,6 +39,28 @@ keywords:
   too many projects: 15
   subcontracting: 15
 
+# Scoring configuration
+scoring:
+  # Minimum keyword score to pass to AI stage (stage 1 gate)
+  keyword_threshold: 20
+  
+  # AI system prompt for relevance scoring
+  # Available placeholders: {skills} (comma-separated list from keywords)
+  ai_system_prompt: |
+    You are a hiring post classifier for a freelance developer.
+    
+    The developer's skills: {skills}
+    
+    Your task: determine if a Reddit hiring post is relevant and score it.
+    
+    Rules:
+    - is_relevant: 1 if the post needs skills matching the developer's profile, 0 otherwise
+    - score: 0-100, higher for urgent/high-value projects
+    - reason: brief explanation in one sentence
+    
+    Respond ONLY with valid JSON:
+    {{"is_relevant": 0 or 1, "score": 0-100, "reason": "..."}}
+
 ai_providers:
   enabled: true
   providers:
@@ -55,7 +77,7 @@ ai_providers:
     - name: openrouter
       enabled: true
       api_key: ${OPENROUTER_API_KEY}
-      model: inclusionai/ling-2.6-flash #qwen/qwen-2.5-7b-instruct
+      model: inclusionai/ling-2.6-flash
       priority: 1
     - name: cerebras
       enabled: false
@@ -73,7 +95,6 @@ ai_providers:
       model: meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo
       priority: 100
 
-min_score: 20
 request_delay: 60
 fetch_limit: 50
 
