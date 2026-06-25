@@ -59,7 +59,7 @@ class RedditFetcher:
         
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'python:reddit-job-monitor:1.0 (by /u/rezatoosi)'
+            'User-Agent': 'python:reddit-job-monitor:1.0 (by /u/findingjobs)'
         })
         
         if proxy_http:
