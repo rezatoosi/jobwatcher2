@@ -150,12 +150,12 @@ ai_providers:
   enabled: true
   providers:
     - name: groq
-      enabled: false
+      enabled: true
       api_key: ${GROQ_API_KEY}
       model: llama-3.3-70b-versatile
       priority: 2
     - name: google
-      enabled: false
+      enabled: true
       api_key: ${GOOGLE_API_KEY}
       model: gemini-2.5-flash
       priority: 3

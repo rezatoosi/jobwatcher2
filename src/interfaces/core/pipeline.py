@@ -267,7 +267,7 @@ class ScoringPipeline:
         total = len(passed)
         logger.info(f"Starting AI scoring for {total} posts")
         for idx, kw in enumerate(passed, start=1):
-            scored = self.ai_scorer.fake_score_post(kw.post)
+            scored = self.ai_scorer.score_post(kw.post)
             # Preserve keyword metadata from stage 2
             scored = replace(scored, matched_keywords=kw.matched_keywords)
             
