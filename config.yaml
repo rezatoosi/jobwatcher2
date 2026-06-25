@@ -186,4 +186,4 @@ fetch_limit: 30
 network:
   # Leave proxy empty ("") to connect directly without a proxy
   proxy: "http://127.0.0.1:32541"
-  request_timeout: 15
+  request_timeout: 60
