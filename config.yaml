@@ -95,7 +95,7 @@ keywords:
   tik-tok: 5
 
 
-other_keywords:
+unused_keywords:
   developer: 5
   programmer: 5
   backend: 5
@@ -147,7 +147,7 @@ scoring:
     }}
 
 ai_providers:
-  enabled: true
+  enabled: false
   providers:
     - name: groq
       enabled: true
