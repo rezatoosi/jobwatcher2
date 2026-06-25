@@ -1,14 +1,40 @@
 subreddits:
   - forhire
   - freelance_forhire
+  - Jobs4Crypto
+  - Jobs4Bitcoins
+  - jobbit
+  - B2BForHire
+  - slavelabour
+  - techjobs
 
 filters:
   forhire:
-    title_must_contain: ["[Hiring]"]
-    title_must_not_contain: ["[For Hire]", "[META]"]
+    # title_must_contain: ["[Hiring]"]
+    # title_must_not_contain: ["[For Hire]", "[META]"]
+    title_must_not_contain: ["[For Hire]"]
   
   freelance_forhire:
-    title_must_contain: ["[Hiring]"]
+    # title_must_contain: ["[Hiring]"]
+    title_must_not_contain: ["[For Hire]"]
+
+  Jobs4Crypto:
+    title_must_not_contain: ["[For Hire]"]
+  
+  Jobs4Bitcoins:
+    title_must_not_contain: ["[For Hire]"]
+
+  jobbit:
+    title_must_not_contain: ["[For Hire]"]
+
+  B2BForHire:
+    title_must_not_contain: ["[For Hire]"]
+  
+  slavelabour:
+    title_must_not_contain: ["[For Hire]"]
+  
+  techjobs:
+    title_must_not_contain: ["[For Hire]"]
 
 keywords:
   python: 5
@@ -20,46 +46,105 @@ keywords:
   woocommerce: 5
   nestjs: 5
   nextjs: 5
+  express: 5
+  react: 5
+  react.js: 5
+  react-native: 5
   typescript: 5
   javascript: 5
+  es6: 5
   js: 5
   node: 5
-  developer: 10
-  programmer: 10
-  backend: 10
-  hire: 2
-  hiring: 10
-  freelance: 8
-  urgent: 15
-  ASAP: 15
-  need help: 20
-  overloaded: 20
-  need a developer: 10
+  nodejs: 5
+  saas: 5
+  html: 2
+  css: 2
+  jquery: 2
+  mongodb: 2
+  redis: 2
+  tailwind: 2
+  rabbit: 2
+  sql: 2
+  linux: 2
+  docker: 2
+  server: 2
+  aws: 2
+  gcp: 2
+  full-stack: 2
+  front-end: 2
+  back-end: 2
+  git: 2
+  bootstrap: 2
+  grunt: 2
+  gulp: 2
+  sass: 2
+  scss: 2
+  less: 2
+
+  HIT: 5
+  LMS: 5
+  bot: 5
+  # social media admin
+  social media: 5
+  content creator: 5
+  admin: 5
+  growth: 5
+  instagram: 5
+  telegram: 5
+  youtube: 5
+  tik-tok: 5
+
+
+other_keywords:
+  developer: 5
+  programmer: 5
+  backend: 5
+  hire: 5
+  hiring: 5
+  freelance: 5
+  urgent: 5
+  ASAP: 5
+  need help: 5
+  overloaded: 5
+  need a developer: 5
   looking for: 5
-  too many projects: 15
-  subcontracting: 15
+  too many projects: 5
+  subcontracting: 5
 
 # Scoring configuration
 scoring:
   # Minimum keyword score to pass to AI stage (stage 1 gate)
-  keyword_threshold: 20
+  keyword_threshold: 5
   
   # AI system prompt for relevance scoring
   # Available placeholders: {skills} (comma-separated list from keywords)
   ai_system_prompt: |
-    You are a hiring post classifier for a freelance developer.
+    You are a hiring post classifier for a professional.
     
-    The developer's skills: {skills}
+    skills: {skills}
     
-    Your task: determine if a Reddit hiring post is relevant and score it.
+    Your task: determine if a hiring post is worth responding to and score it.
     
     Rules:
-    - is_relevant: 1 if the post needs skills matching the developer's profile, 0 otherwise
-    - score: 0-100, higher for urgent/high-value projects
+    - is_relevant: binary decision. 1 if the developer should consider replying, 0 otherwise.
+    - score: overall attractiveness of replying (0–100). This is the AI's holistic judgment of how worthwhile the opportunity is. It does not need to be derived from the other scores.
+    - match: how well the required tech/skills matches the user profile
+    - value: opportunity value (budget quality, long-term potential, etc)
+    - urgency: time-sensitivity (ASAP, immediate start, tight deadline, etc)
+    - risk_free: job reliability (clear scope, realistic expectations, not scam). 0=very risky/vague, 100=very safe. Ignore ethics or policy issues.
     - reason: brief explanation in one sentence
+    - If match < 40 → is_relevant should usually be 0 unless the opportunity still seems worthwhile.
     
-    Respond ONLY with valid JSON:
-    {{"is_relevant": 0 or 1, "score": 0-100, "reason": "..."}}
+    Respond ONLY with valid JSON:    
+    {{
+      "is_relevant": <0 or 1>,
+      "score": <0-100>,
+      "match": <0-100>,
+      "value": <0-100>,
+      "urgency": <0-100>,
+      "risk_free": <0-100>,
+      "reason": "<one sentence>"
+    }}
 
 ai_providers:
   enabled: true
