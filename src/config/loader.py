@@ -63,6 +63,27 @@ class AIProvidersConfig(BaseModel):
     providers: List[AIProviderConfig] = Field(default_factory=list)
 
 
+class RateLimitingConfig(BaseModel):
+    """Rate limiting and backoff configuration (global)."""
+
+    max_retries: int = Field(
+        default=3,
+        description="Maximum number of retry attempts for rate limit errors",
+    )
+    initial_backoff: float = Field(
+        default=5.0,
+        description="Initial delay in seconds before first retry",
+    )
+    max_backoff: float = Field(
+        default=60.0,
+        description="Maximum delay in seconds between retries",
+    )
+    backoff_multiplier: float = Field(
+        default=2.0,
+        description="Multiplier for exponential backoff",
+    )
+
+
 class NetworkConfig(BaseModel):
     """Network and proxy settings."""
 
@@ -78,6 +99,7 @@ class AppConfig(BaseModel):
     keywords: Dict[str, float]
     scoring: ScoringConfig = Field(default_factory=ScoringConfig)
     ai_providers: AIProvidersConfig
+    rate_limiting: RateLimitingConfig = Field(default_factory=RateLimitingConfig)
     request_delay: int = 60
     fetch_limit: int = 50
     network: NetworkConfig = Field(default_factory=NetworkConfig)

@@ -183,6 +183,17 @@ ai_providers:
 request_delay: 60
 fetch_limit: 30
 
+# Rate limiting and backoff configuration (global, applied across all AI providers)
+rate_limiting:
+  # Maximum number of retry attempts for rate limit errors
+  max_retries: 3
+  # Initial delay in seconds before first retry
+  initial_backoff: 5.00
+  # Maximum delay in seconds between retries
+  max_backoff: 60.0
+  # Multiplier for exponential backoff (delay *= backoff_multiplier after each retry)
+  backoff_multiplier: 2.0
+
 network:
   # Leave proxy empty ("") to connect directly without a proxy
   proxy: "http://127.0.0.1:32541"

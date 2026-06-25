@@ -41,7 +41,9 @@ class AIScorer(BaseScorer):
         max_tokens: int = 256,
         temperature: float = 0.0,
         max_retries: int = 3,
-        retry_delay: float = 60.0,
+        initial_backoff: float = 5.0,
+        max_backoff: float = 60.0,
+        backoff_multiplier: float = 2.0,
     ) -> None:
         """Initialize the AI scorer.
 
@@ -51,7 +53,9 @@ class AIScorer(BaseScorer):
             max_tokens: Token budget for the response.
             temperature: Sampling temperature (0.0 = deterministic).
             max_retries: Attempts on provider/request failure before raising.
-            retry_delay: Seconds to wait between provider-failure retries.
+            initial_backoff: Seconds to wait before the first retry.
+            max_backoff: Upper cap (seconds) for the backoff delay.
+            backoff_multiplier: Factor applied to the delay after each retry.
         """
         # min_score is intentionally unused for filtering here; the final
         # keep/drop decision is `is_relevant`, handled by the hybrid layer.
@@ -61,7 +65,9 @@ class AIScorer(BaseScorer):
         self.max_tokens = max_tokens
         self.temperature = temperature
         self.max_retries = max_retries
-        self.retry_delay = retry_delay
+        self.initial_backoff = initial_backoff
+        self.max_backoff = max_backoff
+        self.backoff_multiplier = backoff_multiplier
 
     def score_post(self, post: ScorablePost) -> ScoredPost:
         """Score a single post via the AI provider.
@@ -147,6 +153,9 @@ class AIScorer(BaseScorer):
         total failure via `AIResponse.success=False` (it does not raise), so
         we retry based on that flag.
 
+        Retries use a global exponential backoff (initial_backoff grows by
+        backoff_multiplier each attempt, capped at max_backoff).
+
         On total failure after all retries, returns a ScoredPost flagged with
         provider_failure error instead of raising, allowing the batch to continue.
 
@@ -154,6 +163,7 @@ class AIScorer(BaseScorer):
             A successful AIResponse or a fallback ScoredPost on total failure.
         """
         last_error = "unknown error"
+        backoff = self.initial_backoff
         for attempt in range(1, self.max_retries + 1):
             response = self.manager.send_request(
                 user_prompt=user_prompt,
@@ -173,9 +183,10 @@ class AIScorer(BaseScorer):
                 last_error,
             )
             if attempt < self.max_retries:
-                time.sleep(self.retry_delay)
+                time.sleep(backoff)
+                backoff = min(backoff * self.backoff_multiplier, self.max_backoff)
 
-        # if failed after 3 attempt, return a ScoredPost with error metadata
+        # if failed after all attempts, return a ScoredPost with error metadata
         logger.error(
             "AI provider failed for post %s after %d attempts: %s",
             post.post_id,

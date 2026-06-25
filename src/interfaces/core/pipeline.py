@@ -133,7 +133,7 @@ class FetchPipeline:
 
 class ScoringPipeline:
     """Score pending posts with filter + keyword + AI, update status accordingly.
-    
+
     Loads posts with status='pending', applies filter, keyword scoring, then
     optional AI scoring. Updates each post to 'accepted' or 'rejected'
     with appropriate metadata.
@@ -157,6 +157,10 @@ class ScoringPipeline:
             self.ai_scorer = AIScorer(
                 manager=self.ai_manager,
                 system_prompt=self._build_system_prompt(config),
+                max_retries=config.rate_limiting.max_retries,
+                initial_backoff=config.rate_limiting.initial_backoff,
+                max_backoff=config.rate_limiting.max_backoff,
+                backoff_multiplier=config.rate_limiting.backoff_multiplier,
             )
 
     @staticmethod
