@@ -89,7 +89,7 @@ class AppConfig(BaseModel):
         if not isinstance(v, dict):
             return {}
         return {
-            subreddit: SubredditFilter(**rules)
+            subreddit.lower(): SubredditFilter(**rules)
             for subreddit, rules in v.items()
         }
 
