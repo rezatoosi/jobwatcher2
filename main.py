@@ -5,6 +5,7 @@ import argparse
 import logging
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
 
 from src.interfaces.cli.commands import (
     cmd_fetch,
@@ -39,6 +40,8 @@ def setup_logging(verbose: bool = False):
 
 def main():
     """Run the Reddit post monitoring CLI."""
+    load_dotenv()
+
     parser = argparse.ArgumentParser(
         description="Reddit Job Post Monitor - Track and score job posts from subreddits",
         formatter_class=argparse.RawDescriptionHelpFormatter

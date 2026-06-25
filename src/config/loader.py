@@ -49,7 +49,10 @@ class AIProviderConfig(BaseModel):
         """Expand ${VAR_NAME} to environment variable value."""
         if match := re.match(r"\$\{([^}]+)\}", v):
             var_name = match.group(1)
-            return os.environ.get(var_name, "")
+            value = os.environ.get(var_name)
+            if not value:
+                raise ValueError(f"Environment variable {var_name!r} is not set")
+            return value
         return v
 
 
