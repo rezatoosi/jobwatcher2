@@ -61,6 +61,7 @@ class ScoringReport:
     ai_enabled: bool = False
     accepted: list[ScoredPost] = field(default_factory=list)
     rejected: list[RejectedPost] = field(default_factory=list)
+    still_pending: int = 0
 
     @property
     def accepted_count(self) -> int:
@@ -181,9 +182,6 @@ class ScoringPipeline:
             
         Returns:
             ScoringReport with accepted and rejected counts and details.
-            
-        Raises:
-            AIScoringError: AI provider failed repeatedly.
         """
         report = ScoringReport(ai_enabled=self.ai_scorer is not None)
 
@@ -274,6 +272,21 @@ class ScoringPipeline:
             if progress is not None:
                 progress(idx, total, scored)
 
+            # Check for AI errors (provider failure or parse error)
+            has_error = (
+                scored.ai_metadata is not None
+                and scored.ai_metadata.get("error") in ["provider_failure", "invalid_json"]
+            )
+
+            if has_error:
+                # Keep post as pending for retry, don't mark rejected
+                error_type = scored.ai_metadata.get("error")
+                logger.warning(
+                    f"Post {scored.post.post_id} stayed pending due to AI {error_type}"
+                )
+                report.still_pending += 1
+                continue
+
             is_relevant = (
                 scored.ai_metadata 
                 and scored.ai_metadata.get("is_relevant") == 1
@@ -306,6 +319,7 @@ class ScoringPipeline:
 
         logger.info(
             f"AI scoring complete: {len(report.accepted)} accepted, "
-            f"{len(report.rejected)} rejected"
+            f"{len(report.rejected)} rejected, "
+            f"{report.still_pending} still pending"
         )
         return report

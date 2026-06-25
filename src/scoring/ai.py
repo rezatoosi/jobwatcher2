@@ -66,16 +66,15 @@ class AIScorer(BaseScorer):
     def score_post(self, post: ScorablePost) -> ScoredPost:
         """Score a single post via the AI provider.
 
-        Returns a ScoredPost. On a JSON parse/validation failure, returns a
-        zero-score post flagged irrelevant in `ai_metadata` (drop just this
-        post). On repeated provider/request failure, raises AIScoringError to
-        stop the whole batch.
-
-        Raises:
-            AIScoringError: All provider retries exhausted.
+        Returns a ScoredPost. On parse/validation or provider failure, returns
+        a post with error flagged in ai_metadata (post stays pending for retry).
         """
         user_prompt = self._build_user_prompt(post)
         response = self._send_with_retry(user_prompt, post)
+
+        # If _send_with_retry returned a ScoredPost (provider failure), return it
+        if isinstance(response, ScoredPost):
+            return response
 
         parsed = self._parse_response(response.content)
         if parsed is None:
@@ -148,11 +147,11 @@ class AIScorer(BaseScorer):
         total failure via `AIResponse.success=False` (it does not raise), so
         we retry based on that flag.
 
-        Returns:
-            A successful AIResponse.
+        On total failure after all retries, returns a ScoredPost flagged with
+        provider_failure error instead of raising, allowing the batch to continue.
 
-        Raises:
-            AIScoringError: All attempts failed.
+        Returns:
+            A successful AIResponse or a fallback ScoredPost on total failure.
         """
         last_error = "unknown error"
         for attempt in range(1, self.max_retries + 1):
@@ -176,8 +175,22 @@ class AIScorer(BaseScorer):
             if attempt < self.max_retries:
                 time.sleep(self.retry_delay)
 
-        raise AIScoringError(
-            f"AI provider failed after {self.max_retries} attempts: {last_error}"
+        # if failed after 3 attempt, return a ScoredPost with error metadata
+        logger.error(
+            "AI provider failed for post %s after %d attempts: %s",
+            post.post_id,
+            self.max_retries,
+            last_error,
+        )
+        return ScoredPost(
+            post=post,
+            score=0.0,
+            matched_keywords=[],
+            ai_metadata={
+                "is_relevant": 0,
+                "error": "provider_failure",
+                "error_detail": last_error,
+            },
         )
 
     def _build_user_prompt(self, post: ScorablePost) -> str:
