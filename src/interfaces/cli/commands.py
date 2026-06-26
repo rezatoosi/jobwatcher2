@@ -109,9 +109,15 @@ def cmd_view(
     show_rejected: bool = False,
     show_pending: bool = False,
     limit: Optional[int] = None,
+    post_id: Optional[str] = None,
+    verbose: bool = False,
 ) -> None:
     """View posts from database."""
     db = Database(_DB_PATH)
+
+    if post_id:
+        _render_single_post(db, post_id, verbose)
+        return
 
     if show_accepted:
         print("=== Accepted Posts ===\n")
@@ -158,6 +164,57 @@ def cmd_view(
                 print(f"   URL: {post.url}")
                 print(f"   Fetched at: {post.fetched_at}")
                 print()
+
+
+def _render_single_post(db: Database, post_id: str, verbose: bool = False) -> None:
+    """Render a single post by ID with optional AI metadata."""
+    cursor = db._conn.execute("SELECT * FROM posts WHERE post_id = ?", (post_id,))
+    row = cursor.fetchone()
+    if not row:
+        print(f"Post '{post_id}' not found.")
+        return
+
+    post = Database._row_to_record(row)
+    print(f"[{post.subreddit}] {post.title}")
+    print(f"  Post ID:   {post.post_id}")
+    print(f"  URL:       {post.url}")
+    print(f"  Status:    {post.status}")
+    if post.scored_at:
+        print(f"  Scored at: {post.scored_at}")
+    if post.score is not None:
+        print(f"  Score:     {post.score}")
+    if post.matched_keywords:
+        print(f"  Keywords:  {', '.join(post.matched_keywords)}")
+    if post.rejection_reason:
+        print(f"  Reason:    {post.rejection_reason}")
+    if post.body:
+        body_preview = post.body[:200].replace("\n", " ")
+        suffix = "..." if len(post.body) > 200 else ""
+        print(f"  Body:      {body_preview}{suffix}")
+
+    if post.ai_metadata and post.ai_metadata.get("provider"):
+        print()
+        print("  --- AI Metadata ---")
+        meta = post.ai_metadata
+        if meta.get("provider"):
+            print(f"  Provider:  {meta['provider']}")
+        if meta.get("model"):
+            print(f"  Model:     {meta['model']}")
+        if meta.get("tokens_used"):
+            print(f"  Tokens:    {meta['tokens_used']}")
+        if meta.get("is_relevant") is not None:
+            print(f"  Relevant:  {meta['is_relevant']}")
+        if meta.get("score") is not None:
+            print(f"  Score:     {meta['score']}")
+        if meta.get("reasoning"):
+            print(f"  Reason:    {meta['reasoning'][:300]}")
+        if meta.get("error"):
+            print(f"  Error:     {meta['error']}")
+        if verbose and meta.get("raw_response"):
+            print()
+            print("  --- Raw Response ---")
+            print(meta["raw_response"])
+
 
 
 def cmd_stats() -> None:

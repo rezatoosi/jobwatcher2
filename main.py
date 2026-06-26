@@ -104,6 +104,20 @@ def main():
         default=None,
         help="Limit number of posts to display"
     )
+    view_parser.add_argument(
+        "--id",
+        type=str,
+        default=None,
+        help="View a single post by ID"
+    )
+    view_parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        dest="view_verbose",
+        help="Include raw_response in AI metadata display"
+    )
+
 
     # Stats command
     subparsers.add_parser("stats", help="Display database statistics")
@@ -129,13 +143,15 @@ def main():
         elif args.command == "view":
             # Default: show accepted if nothing specified
             show_accepted = args.accepted or (
-                not args.accepted and not args.rejected and not args.pending
+                not args.accepted and not args.rejected and not args.pending and not args.id
             )
             cmd_view(
                 show_accepted=show_accepted,
                 show_rejected=args.rejected,
                 show_pending=args.pending,
-                limit=args.limit
+                limit=args.limit,
+                post_id=args.id,
+                verbose=args.view_verbose,
             )
 
         elif args.command == "stats":
