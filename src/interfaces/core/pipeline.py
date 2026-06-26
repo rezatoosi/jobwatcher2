@@ -157,6 +157,7 @@ class ScoringPipeline:
             self.ai_scorer = AIScorer(
                 manager=self.ai_manager,
                 system_prompt=self._build_system_prompt(config),
+                max_tokens=config.ai_providers.max_tokens,
                 max_retries=config.rate_limiting.max_retries,
                 initial_backoff=config.rate_limiting.initial_backoff,
                 max_backoff=config.rate_limiting.max_backoff,

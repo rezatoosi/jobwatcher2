@@ -60,6 +60,10 @@ class AIProvidersConfig(BaseModel):
     """AI providers configuration."""
 
     enabled: bool = True
+    max_tokens: int = Field(
+        default=256,
+        description="Token budget for the AI scorer response (shared across providers)",
+    )
     providers: List[AIProviderConfig] = Field(default_factory=list)
 
 

@@ -148,6 +148,7 @@ scoring:
 
 ai_providers:
   enabled: false
+  max_tokens: 2048
   providers:
     - name: groq
       enabled: true
