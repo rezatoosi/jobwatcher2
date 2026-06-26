@@ -120,7 +120,12 @@ def main():
 
 
     # Stats command
-    subparsers.add_parser("stats", help="Display database statistics")
+    stats_parser = subparsers.add_parser("stats", help="Display database statistics")
+    stats_parser.add_argument(
+        "--providers",
+        action="store_true",
+        help="Show AI provider usage statistics"
+    )
 
     args = parser.parse_args()
 
@@ -155,7 +160,7 @@ def main():
             )
 
         elif args.command == "stats":
-            cmd_stats()
+            cmd_stats(providers_only=args.providers)
 
     except KeyboardInterrupt:
         print("\n\nInterrupted by user.")

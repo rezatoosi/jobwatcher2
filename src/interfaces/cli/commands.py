@@ -217,9 +217,13 @@ def _render_single_post(db: Database, post_id: str, verbose: bool = False) -> No
 
 
 
-def cmd_stats() -> None:
+def cmd_stats(providers_only: bool = False) -> None:
     """Display database statistics."""
     db = Database(_DB_PATH)
+
+    if providers_only:
+        _render_provider_stats(db)
+        return
 
     counts = db.count_posts_by_status()
     accepted_count = counts.get("accepted", 0)
@@ -238,3 +242,51 @@ def cmd_stats() -> None:
         print("Top subreddits (accepted):")
         for sr, count in top_subreddits:
             print(f"  r/{sr}: {count} posts")
+
+
+def _render_provider_stats(db: Database) -> None:
+    """Render provider-level stats aggregated from ai_metadata."""
+    cursor = db._conn.execute(
+        "SELECT ai_metadata FROM posts WHERE ai_metadata IS NOT NULL"
+    )
+
+    providers: dict[str, dict] = {}
+    for row in cursor.fetchall():
+        meta = Database._parse_ai_metadata(row["ai_metadata"])
+        if not meta:
+            continue
+
+        key = meta.get("provider") or "unknown"
+        model = meta.get("model") or "unknown"
+        status = meta.get("status") or ("error" if meta.get("error") else "success")
+
+        if key not in providers:
+            providers[key] = {"models": {}}
+        if model not in providers[key]["models"]:
+            providers[key]["models"][model] = {"total": 0, "success": 0, "error": 0}
+
+        bucket = providers[key]["models"][model]
+        bucket["total"] += 1
+        if status == "success":
+            bucket["success"] += 1
+        else:
+            bucket["error"] += 1
+
+    if not providers:
+        print("No AI scoring data found.")
+        return
+
+    print("=== Provider Statistics ===\n")
+    for provider, info in sorted(providers.items()):
+        total_reqs = sum(m["total"] for m in info["models"].values())
+        total_success = sum(m["success"] for m in info["models"].values())
+        total_errors = total_reqs - total_success
+        rate = (total_success / total_reqs * 100) if total_reqs else 0
+
+        print(f"{provider} ({total_reqs} requests, {rate:.1f}% success)")
+        for model, stats in sorted(info["models"].items()):
+            print(
+                f"  {model}: {stats['total']} reqs | "
+                f"{stats['success']} OK | {stats['error']} err"
+            )
+        print()
