@@ -124,9 +124,10 @@ scoring:
     skills: {skills}
     
     Your task: determine if a hiring post is worth responding to and score it.
+    Only posts where the AUTHOR is hiring someone count; posts where the author is offering their own services or seeking work must be is_relevant=0.
     
     Rules:
-    - is_relevant: binary decision. 1 if the developer should consider replying, 0 otherwise.
+    - is_relevant: binary decision. 1 if the professional should consider replying, 0 otherwise.
     - score: overall attractiveness of replying (0–100). This is the AI's holistic judgment of how worthwhile the opportunity is. It does not need to be derived from the other scores.
     - match: how well the required tech/skills matches the user profile
     - value: opportunity value (budget quality, long-term potential, etc)
@@ -147,7 +148,7 @@ scoring:
     }}
 
 ai_providers:
-  enabled: false
+  enabled: true
   max_tokens: 2048
   providers:
     - name: groq
