@@ -1,11 +1,33 @@
 # src/ai/base.py
 """Base classes and types for AI client abstraction."""
 
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
+# Patterns for secrets that must never reach logs/error messages:
+# - `key=...` in query strings (e.g. Google Generative Language API)
+# - Authorization: Bearer <token> headers
+_SECRET_PATTERNS = (
+    re.compile(r"([?&]key=)[^&\s]+", re.IGNORECASE),
+    re.compile(r"(authorization:\s*bearer\s+)\S+", re.IGNORECASE),
+)
+
+
+def mask_secrets(text: str) -> str:
+    """Redact API keys and auth tokens from arbitrary text before logging.
+
+    Safe to call on any string (URLs, exception messages, response bodies).
+    Returns the input unchanged if it contains no secrets.
+    """
+    if not text:
+        return text
+    masked = text
+    for pattern in _SECRET_PATTERNS:
+        masked = pattern.sub(r"\1***", masked)
+    return masked
 
 class AIProvider(Enum):
     """Supported AI providers."""

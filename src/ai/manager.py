@@ -4,7 +4,7 @@
 import logging
 from typing import Optional
 
-from .base import AIResponse, AIClientError, RateLimitError, AuthenticationError
+from .base import AIResponse, AIClientError, RateLimitError, AuthenticationError, mask_secrets
 from .factory import create_client
 
 logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ class AIProviderManager:
                 logger.warning(
                     "Skipping provider '%s': failed to build client (%s)",
                     cfg.name,
-                    exc,
+                    mask_secrets(str(exc)),
                 )
                 continue
             self._clients.append((cfg.name, client))
@@ -100,29 +100,32 @@ class AIProviderManager:
                     max_tokens=max_tokens,
                 )
             except (RateLimitError, AuthenticationError) as exc:
+                masked_exc = mask_secrets(str(exc))
                 logger.warning(
                     "Provider '%s' unavailable (%s); falling back",
                     name,
-                    exc,
+                    masked_exc,
                 )
-                last_error = f"{name}: {exc}"
+                last_error = f"{name}: {masked_exc}"
                 continue
             except AIClientError as exc:
+                masked_exc = mask_secrets(str(exc))
                 logger.warning(
-                    "Provider '%s' failed (%s); falling back", name, exc
+                    "Provider '%s' failed (%s); falling back", name, masked_exc
                 )
-                last_error = f"{name}: {exc}"
+                last_error = f"{name}: {masked_exc}"
                 continue
 
             if response.success:
                 return response
 
+            masked_error = mask_secrets(response.error or "")
             logger.warning(
                 "Provider '%s' returned failure (%s); falling back",
                 name,
-                response.error,
+                masked_error,
             )
-            last_error = f"{name}: {response.error}"
+            last_error = f"{name}: {masked_error}"
 
         return AIResponse(
             content="",
