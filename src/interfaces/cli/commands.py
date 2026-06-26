@@ -188,28 +188,45 @@ def _render_single_post(db: Database, post_id: str, verbose: bool = False) -> No
     if post.rejection_reason:
         print(f"  Reason:    {post.rejection_reason}")
     if post.body:
-        body_preview = post.body[:200].replace("\n", " ")
-        suffix = "..." if len(post.body) > 200 else ""
-        print(f"  Body:      {body_preview}{suffix}")
+        # body_preview = post.body[:200].replace("\n", " ")
+        # suffix = "..." if len(post.body) > 200 else ""
+        # print(f"  Body:      {body_preview}{suffix}")
+        print(f"  Body:      {post.body}")
 
     if post.ai_metadata and post.ai_metadata.get("provider"):
         print()
         print("  --- AI Metadata ---")
         meta = post.ai_metadata
+
         if meta.get("provider"):
-            print(f"  Provider:  {meta['provider']}")
+            print(f"  Provider:   {meta['provider']}")
         if meta.get("model"):
-            print(f"  Model:     {meta['model']}")
+            print(f"  Model:      {meta['model']}")
         if meta.get("tokens_used"):
-            print(f"  Tokens:    {meta['tokens_used']}")
+            print(f"  Tokens:     {meta['tokens_used']}")
         if meta.get("is_relevant") is not None:
-            print(f"  Relevant:  {meta['is_relevant']}")
+            print(f"  Relevant:   {meta['is_relevant']}")
         if meta.get("score") is not None:
-            print(f"  Score:     {meta['score']}")
-        if meta.get("reasoning"):
-            print(f"  Reason:    {meta['reasoning'][:300]}")
+            print(f"  Score:      {meta['score']}")
+
+        # Per-dimension scores (any extra numeric breakdown fields)
+        _known = {
+            "provider", "model", "tokens_used", "is_relevant", "score",
+            "reason", "error", "raw_response", "status",
+        }
+        breakdown = {
+            k: v for k, v in meta.items()
+            if k not in _known and isinstance(v, (int, float))
+        }
+        if breakdown:
+            print("  Breakdown:")
+            for k, v in breakdown.items():
+                print(f"    {k}: {v}")
+
+        if meta.get("reason"):
+            print(f"  Reason:     {meta['reason']}")
         if meta.get("error"):
-            print(f"  Error:     {meta['error']}")
+            print(f"  Error:      {meta['error']}")
         if verbose and meta.get("raw_response"):
             print()
             print("  --- Raw Response ---")
