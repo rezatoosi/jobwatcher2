@@ -85,8 +85,11 @@ class AIScorer(BaseScorer):
         parsed = self._parse_response(response.content)
         if parsed is None:
             logger.warning(
-                "Dropping post %s: could not parse AI response as JSON",
+                "Dropping post %s: could not parse AI response as JSON (provider: %s, model: %s). Raw response: %s",
                 post.post_id,
+                response.provider,
+                response.model,
+                response.content,
             )
             return ScoredPost(
                 post=post,
@@ -95,9 +98,10 @@ class AIScorer(BaseScorer):
                 ai_metadata={
                     "is_relevant": 0,
                     "error": "invalid_json",
-                    "raw": response.content,
+                    "raw_response": response.content,
                     "provider": response.provider,
                     "model": response.model,
+                    "tokens_used": response.tokens_used,
                 },
             )
 
@@ -110,6 +114,7 @@ class AIScorer(BaseScorer):
         metadata["provider"] = response.provider
         metadata["model"] = response.model
         metadata["tokens_used"] = response.tokens_used
+        metadata["raw_response"] = response.content
 
         return ScoredPost(
             post=post,
@@ -118,11 +123,12 @@ class AIScorer(BaseScorer):
             ai_metadata=metadata,
         )
 
-    def fake_score_post(self, post: ScorablePost) -> ScoredPost:
+    def fake_score_post(self, post: ScorablePost, raw_response: str = "") -> ScoredPost:
         """Simulate AIScorer.score_post for testing without calling real AI API.
         
         Args:
             post: The post to score
+            raw_response: Optional raw response to include in metadata
         
         Returns:
             ScoredPost with fake AI metadata
@@ -143,6 +149,7 @@ class AIScorer(BaseScorer):
                 "provider": "fake_provider",
                 "model": "fake_model",
                 "tokens_used": 0,
+                "raw_response": raw_response or '{"is_relevant": %d, "score": %.2f}' % (is_relevant, score),
             }
         )
 
@@ -201,6 +208,10 @@ class AIScorer(BaseScorer):
                 "is_relevant": 0,
                 "error": "provider_failure",
                 "error_detail": last_error,
+                "provider": None,
+                "model": None,
+                "tokens_used": None,
+                "raw_response": None,
             },
         )
 
