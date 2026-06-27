@@ -233,13 +233,11 @@ def cmd_view(
 
 def _render_single_post(db: Database, post_id: str, verbose: bool = False) -> None:
     """Render a single post by ID with optional AI metadata."""
-    cursor = db._conn.execute("SELECT * FROM posts WHERE post_id = ?", (post_id,))
-    row = cursor.fetchone()
-    if not row:
+    post = db.get_post_by_id(post_id)
+    if post is None:
         print(f"Post '{post_id}' not found.")
         return
-
-    post = Database._row_to_record(row)
+    
     print(f"[{post.subreddit}] {post.title}")
     print(f"  Post ID:   {post.post_id}")
     print(f"  URL:       {post.url}")
@@ -326,13 +324,9 @@ def cmd_stats(providers_only: bool = False) -> None:
 
 def _render_provider_stats(db: Database) -> None:
     """Render provider-level stats aggregated from ai_metadata."""
-    cursor = db._conn.execute(
-        "SELECT ai_metadata FROM posts WHERE ai_metadata IS NOT NULL"
-    )
-
+    metadata_list = db.get_all_ai_metadata()
     providers: dict[str, dict] = {}
-    for row in cursor.fetchall():
-        meta = Database._parse_ai_metadata(row["ai_metadata"])
+    for meta in metadata_list:
         if not meta:
             continue
 

@@ -316,6 +316,19 @@ class Database:
         )
         return {row["post_id"] for row in cursor.fetchall()}
 
+    def get_post_by_id(self, post_id: str) -> Optional[PostRecord]:
+        """Get a single post by ID, or None if not found."""
+        cursor = self._conn.execute("SELECT * FROM posts WHERE post_id = ?", (post_id,))
+        row = cursor.fetchone()
+        return self._row_to_record(row) if row else None
+
+    def get_all_ai_metadata(self) -> list[dict]:
+        """Get all non-null ai_metadata fields for stats aggregation."""
+        cursor = self._conn.execute(
+            "SELECT ai_metadata FROM posts WHERE ai_metadata IS NOT NULL"
+        )
+        return [self._parse_ai_metadata(row["ai_metadata"]) for row in cursor.fetchall()]
+
     def close(self):
         """Close the database connection."""
         self._conn.close()
