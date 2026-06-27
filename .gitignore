@@ -1,6 +1,7 @@
 posts.db
 /*.db
 /logs
+/.ai
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
