@@ -31,6 +31,7 @@ class PostRecord:
     ai_metadata: Optional[dict] = None
     rejection_reason: Optional[str] = None
     scored_at: Optional[datetime] = None
+    notified: bool = False
 
 
 class Database:
@@ -60,7 +61,8 @@ class Database:
                 ai_metadata TEXT,
                 rejection_reason TEXT,
                 fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                scored_at TIMESTAMP
+                scored_at TIMESTAMP,
+                notified INTEGER NOT NULL DEFAULT 0
             )
         """
         )
@@ -77,7 +79,7 @@ class Database:
     def _parse_ai_metadata(raw: Optional[str]) -> Optional[dict]:
         """Deserialize the JSON ai_metadata field."""
         return json.loads(raw) if raw else None
-    
+
     @staticmethod
     def _parse_datetime(value: Any) -> Optional[datetime]:
         if value is None:
@@ -102,6 +104,7 @@ class Database:
             ai_metadata=cls._parse_ai_metadata(row["ai_metadata"]),
             rejection_reason=row["rejection_reason"],
             scored_at=cls._parse_datetime(row["scored_at"]),
+            notified=bool(row["notified"]),
         )
 
     def save_fetched_post(
@@ -226,6 +229,25 @@ class Database:
             rejection_reason=rejection_reason,
             scored_at=scored_at,
         )
+
+    def mark_as_notified(self, post_ids: list[str]):
+        """Mark posts as notified. Batch update for efficiency."""
+        if not post_ids:
+            return
+        placeholders = ",".join("?" * len(post_ids))
+        self._conn.execute(
+            f"UPDATE posts SET notified = 1 WHERE post_id IN ({placeholders})",
+            post_ids,
+        )
+        self._conn.commit()
+
+    def get_accepted_unnotified(self, limit: Optional[int] = None) -> list[PostRecord]:
+        """Get all accepted posts that have not been notified yet."""
+        query = "SELECT * FROM posts WHERE status = 'accepted' AND notified = 0 ORDER BY scored_at DESC"
+        if limit:
+            query += f" LIMIT {limit}"
+        cursor = self._conn.execute(query)
+        return [self._row_to_record(row) for row in cursor.fetchall()]
 
     def get_pending_posts(self, limit: Optional[int] = None) -> list[PostRecord]:
         """Get all posts with status='pending'."""
