@@ -15,6 +15,10 @@ from src.interfaces.core.pipeline import FetchPipeline, ScoringPipeline, ScoredP
 from src.scoring.ai import AIScoringError
 from src.storage.database import Database
 
+from src.notifiers.factory import build_notifiers
+from src.notifications.service import notify_accepted_posts
+
+
 _DB_PATH = "posts.db"
 
 
@@ -87,6 +91,17 @@ def cmd_score(config_path: Path = Path("config.yaml")) -> None:
             print(f"  ✓ [{post.subreddit}] {post.title[:50]}...")
             print(f"    Score: {sp.score} | Keywords: {keywords}")
 
+    # Send notifications for accepted posts
+    if report.accepted and config.notifiers.enabled:
+        print()
+        print("Sending notifications...")
+        notifiers = build_notifiers(config.notifiers)
+        if notifiers:
+            notify_accepted_posts(notifiers, report.accepted)
+            print(f"  Notified via {len(notifiers)} notifier(s)")
+        else:
+            print("  No notifiers configured")
+
     print()
     print("=== Scoring Summary ===")
     print(f"Pending processed:   {report.total_pending}")
@@ -94,6 +109,7 @@ def cmd_score(config_path: Path = Path("config.yaml")) -> None:
     print(f"Accepted:            {report.accepted_count}")
     print(f"Rejected:            {report.rejected_count}")
     print("=" * 10)
+
 
 
 def cmd_run(config_path: Path = Path("config.yaml")) -> None:
