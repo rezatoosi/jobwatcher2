@@ -25,12 +25,12 @@ class PostRecord:
     body: Optional[str]
     url: str
     status: str
-    fetched_at: Any
+    fetched_at: Optional[datetime]
     score: Optional[float] = None
     matched_keywords: list[str] = field(default_factory=list)
     ai_metadata: Optional[dict] = None
     rejection_reason: Optional[str] = None
-    scored_at: Any = None
+    scored_at: Optional[datetime] = None
 
 
 class Database:
@@ -77,6 +77,14 @@ class Database:
     def _parse_ai_metadata(raw: Optional[str]) -> Optional[dict]:
         """Deserialize the JSON ai_metadata field."""
         return json.loads(raw) if raw else None
+    
+    @staticmethod
+    def _parse_datetime(value: Any) -> Optional[datetime]:
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value
+        return datetime.fromisoformat(value)
 
     @classmethod
     def _row_to_record(cls, row: sqlite3.Row) -> PostRecord:
@@ -88,12 +96,12 @@ class Database:
             body=row["body"],
             url=row["url"],
             status=row["status"],
-            fetched_at=row["fetched_at"],
+            fetched_at=cls._parse_datetime(row["fetched_at"]),
             score=row["score"],
             matched_keywords=cls._parse_keywords(row["matched_keywords"]),
             ai_metadata=cls._parse_ai_metadata(row["ai_metadata"]),
             rejection_reason=row["rejection_reason"],
-            scored_at=row["scored_at"],
+            scored_at=cls._parse_datetime(row["scored_at"]),
         )
 
     def save_fetched_post(
