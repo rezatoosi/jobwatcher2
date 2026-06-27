@@ -1,0 +1,133 @@
+[
+    {
+        "stmt": "SELECT * FROM posts;",
+        "header": [
+            "post_id",
+            "subreddit",
+            "title",
+            "body",
+            "url",
+            "status",
+            "score",
+            "matched_keywords",
+            "ai_metadata",
+            "rejection_reason",
+            "fetched_at",
+            "scored_at"
+        ],
+        "rows": [
+            [
+                "1ug65b7",
+                "forhire",
+                "[FOR HIRE] Petroleum Engineer | Data Analyst | Engineering VA | $8-20/Hr",
+                "Turning complex data into actionable insights while keeping your operations organized and efficient. Hi, Reddit! I'm Andres, a Petroleum Engineer with experience in data analytics, engineering support, customer service, and remote collaboration. I'm currently looking for remote freelance, contract, or full-time opportunities where I can help businesses streamline operations, analyze data, manage projects, and provide reliable technical support. What I can help you with • Data cleaning, validation, and quality assurance • Data analysis using Python (Pandas, NumPy, SciPy) and Excel • Dashboard creation, KPI tracking, and reporting • Google Sheets & Microsoft Excel automation and data management • CRM administration (SAP CRM & Salesforce) • Research, documentation, and technical writing • Virtual assistance and operations support • AI-assisted workflows and prompt engineering • Engineering calculations, reservoir data analysis, and petroleum-related research • Administrative support, file organization, and process documentation Technical Skills Python • SQL (basic) • Pandas • NumPy • Scikit-learn • Matplotlib • Excel • Google Sheets • SAP CRM • Salesforce • Microsoft Office • IBM SPSS • MATLAB • Petrel • PROSPER • PIPESIM • Aspen HYSYS • Canva • Adobe Photoshop Professional Background I previously worked as an Associate Data Analyst, where I built Python-based data processing workflows, analyzed engineering datasets, maintained data quality, and created reports to support business decisions. Before that, I completed a Reservoir Data Internship with an upstream oil and gas company, managing subsurface and production datasets for reservoir studies. I also have over two years of customer service experience, handling high-volume client interactions, CRM management, and cross-functional communication. This combination allows me to bridge technical work with excellent client support and operations. Projects & Research • Machine learning model for drilling fluid optimization using Gaussian Process Regression • Python-based reservoir material balance analysis and production forecasting • Pressure transient and rate transient well test analysis • Engineering process design and simulation projects I'm detail-oriented, quick to learn new software, comfortable working independently, and experienced collaborating with remote teams. Whether you need someone to clean messy datasets, organize business operations, provide technical support, conduct research, or serve as a dependable engineering virtual assistant, I'm ready to help. If you're looking for someone who can combine analytical thinking, engineering knowledge, and reliable remote support, feel free to send me a DM. I'm happy to discuss your project or long-term needs. submitted by /u/Andres192003 [link] [comments]",
+                "https://old.reddit.com/r/forhire/comments/1ug65b7/for_hire_petroleum_engineer_data_analyst/",
+                "rejected",
+                "0.0",
+                "NULL",
+                "NULL",
+                "failed_basic_filter",
+                "2026-06-26 13:51:56.299069",
+                "2026-06-26 13:55:31.162865"
+            ],
+            [
+                "1ug643w",
+                "forhire",
+                "[For Hire] Full-Stack Designer and Developer available for freelance work",
+                "I can work as a designer, developer, or both. We can start with $30 USD per hour — flexible, so reach out and we'll figure it out. typography | colors | branding | photo editing | logo design | minimalism | UX | Affinity Photo | Figma | Tailwind CSS | LiveView | Elixir | Ash | web servers | AI agents | research My résumé and portfolio: https://resume.webpraktikos.com My latest project: UniversalResume.app Write in plain text (Markdown) Import & rewrite an existing resume with AI Click anywhere on the preview to edit Publish as a webpage Connect it to your own domain (resume.yourdomain.com) Export as PDF (screen & print versions) submitted by /u/hot_star [link] [comments]",
+                "https://old.reddit.com/r/forhire/comments/1ug643w/for_hire_fullstack_designer_and_developer/",
+                "rejected",
+                "0.0",
+                "NULL",
+                "NULL",
+                "failed_basic_filter",
+                "2026-06-26 13:51:56.299069",
+                "2026-06-26 13:55:31.162865"
+            ],
+            [
+                "1ug3055",
+                "forhire",
+                "[HIRING] Looking for people for simple social media tasks | Paid weekly",
+                "Hiring people to help with online community engagement and content distribution. Time: Flexible Pay: Weekly ($20-$30) Payment: Crypto (USDT) or UPI Requirements: None, Just consistency. Everything is managed through a dc server If interested then join and read the onboarding channel : https://discord.gg/fDW7gFTGb submitted by /u/Rude_Context_4844 [link] [comments]",
+                "https://old.reddit.com/r/forhire/comments/1ug3055/hiring_looking_for_people_for_simple_social_media/",
+                "accepted",
+                "15.0",
+                "server,social media",
+                "{\"is_relevant\": 1, \"score\": 15, \"match\": 70, \"value\": 10, \"urgency\": 50, \"risk_free\": 40, \"reason\": \"This post offers very low-paid social media tasks managed informally via Discord, aligning with some non-development skills but presenting low value and moderate risk.\", \"provider\": \"google\", \"model\": \"gemini-2.5-flash\", \"tokens_used\": 1660, \"raw_response\": \"```json\\n{\\n  \\\"is_relevant\\\": 1,\\n  \\\"score\\\": 15,\\n  \\\"match\\\": 70,\\n  \\\"value\\\": 10,\\n  \\\"urgency\\\": 50,\\n  \\\"risk_free\\\": 40,\\n  \\\"reason\\\": \\\"This post offers very low-paid social media tasks managed informally via Discord, aligning with some non-development skills but presenting low value and moderate risk.\\\"\\n}\\n```\"}",
+                "NULL",
+                "2026-06-26 13:51:56.299069",
+                "2026-06-26 14:00:56.637294"
+            ],
+            [
+                "1ug7bwk",
+                "freelance_forhire",
+                "[HIRING] Remote Buzz Marketing Specialist – $600/month + Bonuses",
+                "We are a European company based in Estonia, and we are looking for a Buzz Marketing Specialist to help promote our websites in online communities. This is a fully independent position. You will be responsible for the whole process: • Finding relevant threads and discussions • Creating accounts when needed • Writing comments that naturally promote our projects Requirements: • Very good written English • Any experience in buzz marketing or similar work What we offer: • $600/month + performance bonuses • Weekly payments • Full-time work • Fully remote position • Work whenever you want - choose your own hours and working days If you are interested, send me a DM with a short introduction and any relevant experience. submitted by /u/mmklosowski [link] [comments]",
+                "https://old.reddit.com/r/freelance_forhire/comments/1ug7bwk/hiring_remote_buzz_marketing_specialist_600month/",
+                "rejected",
+                "0.0",
+                "NULL",
+                "NULL",
+                "keyword_score_low",
+                "2026-06-26 13:51:56.299069",
+                "2026-06-26 13:55:31.162865"
+            ],
+            [
+                "1ug6qrc",
+                "freelance_forhire",
+                "[hiring] slideshow creators (no face needed) to post ready made content on tiktok.",
+                "submitted by /u/No-Cod-7317 [link] [comments]",
+                "https://old.reddit.com/r/freelance_forhire/comments/1ug6qrc/hiring_slideshow_creators_no_face_needed_to_post/",
+                "rejected",
+                "0.0",
+                "NULL",
+                "NULL",
+                "keyword_score_low",
+                "2026-06-26 13:51:56.299069",
+                "2026-06-26 13:55:31.162865"
+            ],
+            [
+                "1ug6p9q",
+                "freelance_forhire",
+                "[hiring] slideshow creators (no face needed) to post ready made content on tiktok.",
+                "We run organic slideshow campaigns for ai tools and apps what makes this easy: you don't make anything. the slideshows come out of an auto generator, and a second generator handles your account branding. you get the content and you post it. what you'd be doing: - posting auto-generated slideshows to tiktok and instagram reels - posting consistently, because view volume is what pays on a cpm model - scaling across multiple accounts if you want more output - working in your language: english, german, spanish, or dutch and italian asw. payment: - $1.25 cpm, paid per 1,000 views - slideshow generator and account branding generator provided - campaign link and assets sent once you're in - consistent work as long as your accounts keep posting and landing the ideal creator: - already posts on tiktok, or is ready to start fresh (in a similar niche ofc) - can post daily without burning out on it - speaks one of the four languages well enough to caption naturally - doesn't need original ideas, just needs to be consistent - happy running one account properly or several at once to apply, comment \"slides\" and dm me. submitted by /u/No-Cod-7317 [link] [comments]",
+                "https://old.reddit.com/r/freelance_forhire/comments/1ug6p9q/hiring_slideshow_creators_no_face_needed_to_post/",
+                "rejected",
+                "0.0",
+                "instagram",
+                "{\"is_relevant\": 0, \"score\": 20, \"match\": 10, \"value\": 40, \"urgency\": 20, \"risk_free\": 60, \"reason\": \"The job requires minimal technical skills and is more focused on content posting, which does not align well with the user's technical profile.\", \"provider\": \"groq\", \"model\": \"llama-3.3-70b-versatile\", \"tokens_used\": 836, \"raw_response\": \"{\\n  \\\"is_relevant\\\": 0,\\n  \\\"score\\\": 20,\\n  \\\"match\\\": 10,\\n  \\\"value\\\": 40,\\n  \\\"urgency\\\": 20,\\n  \\\"risk_free\\\": 60,\\n  \\\"reason\\\": \\\"The job requires minimal technical skills and is more focused on content posting, which does not align well with the user's technical profile.\\\"\\n}\"}",
+                "ai_rejected: The job requires minimal technical skills and is more focused on content posting, which does not align well with the user's technical profile.",
+                "2026-06-26 13:51:56.299069",
+                "2026-06-26 20:27:45.432892"
+            ],
+            [
+                "1ug5xr3",
+                "freelance_forhire",
+                "[Hiring] Hi, I’m looking for a reliable freelancer to help with basic Instagram account management tasks.",
+                "What you’ll do: * Upload and schedule pre-made Instagram reels/posts * Follow simple posting instructions * Organize content based on a content plan (No content creation or editing required) Requirements: * Smartphone + stable internet connection * Ability to follow instructions carefully * Basic communication in English Details: * Remote freelance work * Flexible hours * Paid monthly based on workload To apply, please send: Age | Country | Timezone | Any relevant experience (optional) --- submitted by /u/itserictho0 [link] [comments]",
+                "https://old.reddit.com/r/freelance_forhire/comments/1ug5xr3/hiring_hi_im_looking_for_a_reliable_freelancer_to/",
+                "rejected",
+                "0.0",
+                "instagram",
+                "{\"is_relevant\": 0, \"score\": 0, \"match\": 0, \"value\": 0, \"urgency\": 0, \"risk_free\": 0, \"reason\": \"The post is from a user offering their own services for Instagram account management, not hiring someone, so it is not relevant for a professional seeking freelance work.\", \"provider\": \"openrouter\", \"model\": \"inclusionai/ling-2.6-flash\", \"tokens_used\": 729, \"raw_response\": \"{\\n  \\\"is_relevant\\\": 0,\\n  \\\"score\\\": 0,\\n  \\\"match\\\": 0,\\n  \\\"value\\\": 0,\\n  \\\"urgency\\\": 0,\\n  \\\"risk_free\\\": 0,\\n  \\\"reason\\\": \\\"The post is from a user offering their own services for Instagram account management, not hiring someone, so it is not relevant for a professional seeking freelance work.\\\"\\n}\"}",
+                "ai_rejected: The post is from a user offering their own services for Instagram account management, not hiring someone, so it is not relevant for a professional seeking freelance work.",
+                "2026-06-26 13:51:56.299069",
+                "2026-06-26 20:27:45.432892"
+            ],
+            [
+                "1ug5rpd",
+                "freelance_forhire",
+                "[HIRING] $50 for 3 Minutes Looking for reliable people in UK AU NZ US CA ONLY. Simple task: Sign up + verify email to unlock $50. No card, no skills, no calls. Open today only. UK AU NZ US CA ONLY.",
+                "submitted by /u/lovepatterns1324 [link] [comments]",
+                "https://old.reddit.com/r/freelance_forhire/comments/1ug5rpd/hiring_50_for_3_minutes_looking_for_reliable/",
+                "rejected",
+                "0.0",
+                "NULL",
+                "NULL",
+                "keyword_score_low",
+                "2026-06-26 13:51:56.299069",
+                "2026-06-26 13:55:31.162865"
+            ]
+        ]
+    }
+]
