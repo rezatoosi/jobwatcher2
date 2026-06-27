@@ -128,6 +128,7 @@ def cmd_view(
             for idx, post in enumerate(posts, 1):
                 keywords = ", ".join(post.matched_keywords)
                 print(f"{idx}. [/r/{post.subreddit}]: {post.title}")
+                print(f"   Post ID:   {post.post_id}")
                 print(f"   Score: {post.score} | Keywords: {keywords}")
                 print(f"   URL: {post.url}")
                 print(f"   Scored at: {post.scored_at}")
@@ -146,6 +147,7 @@ def cmd_view(
             for idx, post in enumerate(posts, 1):
                 keywords = ", ".join(post.matched_keywords)
                 print(f"{idx}. [/r/{post.subreddit}]: {post.title}")
+                print(f"   Post ID:   {post.post_id}")
                 print(f"   Score: {post.score} | Keywords: {keywords}")
                 print(f"   URL: {post.url}")
                 print(f"   Scored at: {post.scored_at}")
@@ -161,6 +163,7 @@ def cmd_view(
         else:
             for idx, post in enumerate(posts, 1):
                 print(f"{idx}. [/r/{post.subreddit}]: {post.title}")
+                print(f"   Post ID:   {post.post_id}")
                 print(f"   URL: {post.url}")
                 print(f"   Fetched at: {post.fetched_at}")
                 print()
@@ -179,6 +182,8 @@ def _render_single_post(db: Database, post_id: str, verbose: bool = False) -> No
     print(f"  Post ID:   {post.post_id}")
     print(f"  URL:       {post.url}")
     print(f"  Status:    {post.status}")
+    if post.fetched_at:
+        print(f"  Fetched at: {post.fetched_at}")
     if post.scored_at:
         print(f"  Scored at: {post.scored_at}")
     if post.score is not None:
