@@ -195,6 +195,19 @@ rate_limiting:
   # Multiplier for exponential backoff (delay *= backoff_multiplier after each retry)
   backoff_multiplier: 3.0
 
+notifiers:
+  enabled: true
+  telegram:
+    enabled: true
+    token: ${TELEGRAM_BOT_TOKEN}
+    chat_id: ${TELEGRAM_CHAT_ID}
+    timeout: 10
+    max_retries: 3
+    initial_backoff: 2.0
+    max_backoff: 30.0
+    backoff_multiplier: 2.0
+
+
 network:
   # Leave proxy empty ("") to connect directly without a proxy
   proxy: "http://127.0.0.1:32541"

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class SubredditFilter(BaseModel):
@@ -88,6 +88,60 @@ class RateLimitingConfig(BaseModel):
     )
 
 
+class TelegramNotifierConfig(BaseModel):
+    """Telegram notification settings."""
+
+    enabled: bool = False
+    token: str = ""
+    chat_id: str = ""
+    timeout: int = 10
+    max_retries: int = 3
+    initial_backoff: float = 2.0
+    max_backoff: float = 30.0
+    backoff_multiplier: float = 2.0
+
+    @model_validator(mode="after")
+    def expand_env_vars(self) -> "TelegramNotifierConfig":
+        """Expand ${VAR_NAME} placeholders only when enabled."""
+        if not self.enabled:
+            return self
+        for field in ("token", "chat_id"):
+            value = getattr(self, field)
+            if match := re.match(r"\$\{([^}]+)\}", value):
+                var_name = match.group(1)
+                env_value = os.environ.get(var_name)
+                if not env_value:
+                    raise ValueError(
+                        f"Environment variable {var_name!r} is not set"
+                    )
+                setattr(self, field, env_value)
+        return self
+
+
+class NotifiersConfig(BaseModel):
+    """Container for all notification channels.
+
+    Holds a global ``enabled`` switch plus one optional config block per
+    channel type. Add new channels (e.g. ``discord``) as additional fields.
+    """
+
+    enabled: bool = False
+    telegram: Optional[TelegramNotifierConfig] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def drop_channels_when_globally_off(cls, data: Any) -> Any:
+        """Strip channel configs before validation if globally disabled.
+
+        Running this in ``before`` mode means the child models (e.g.
+        ``TelegramNotifierConfig``) are never constructed when notifiers are
+        off, so a missing ``TELEGRAM_BOT_TOKEN`` won't fail validation.
+        """
+        if isinstance(data, dict) and not data.get("enabled", False):
+            return {"enabled": False}
+        return data
+
+
 class NetworkConfig(BaseModel):
     """Network and proxy settings."""
 
@@ -106,6 +160,7 @@ class AppConfig(BaseModel):
     rate_limiting: RateLimitingConfig = Field(default_factory=RateLimitingConfig)
     request_delay: int = 60
     fetch_limit: int = 50
+    notifiers: NotifiersConfig = Field(default_factory=NotifiersConfig)
     network: NetworkConfig = Field(default_factory=NetworkConfig)
 
     @field_validator("filters", mode="before")
