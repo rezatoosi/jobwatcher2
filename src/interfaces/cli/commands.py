@@ -13,6 +13,7 @@ from typing import Optional
 from src.config import load_config
 from src.interfaces.core.pipeline import FetchPipeline, ScoringPipeline, ScoredPost
 from src.scoring.ai import AIScoringError
+from src.scoring.base import ScoredPost as BaseScoredPost
 from src.storage.database import Database
 
 from src.notifiers.factory import build_notifiers
@@ -91,17 +92,6 @@ def cmd_score(config_path: Path = Path("config.yaml")) -> None:
             print(f"  ✓ [{post.subreddit}] {post.title[:50]}...")
             print(f"    Score: {sp.score} | Keywords: {keywords}")
 
-    # Send notifications for accepted posts
-    if report.accepted and config.notifiers.enabled:
-        print()
-        print("Sending notifications...")
-        notifiers = build_notifiers(config.notifiers)
-        if notifiers:
-            notify_accepted_posts(notifiers, report.accepted)
-            print(f"  Notified via {len(notifiers)} notifier(s)")
-        else:
-            print("  No notifiers configured")
-
     print()
     print("=== Scoring Summary ===")
     print(f"Pending processed:   {report.total_pending}")
@@ -111,14 +101,58 @@ def cmd_score(config_path: Path = Path("config.yaml")) -> None:
     print("=" * 10)
 
 
+def cmd_notify(config_path: Path = Path("config.yaml")) -> None:
+    """Send notifications for accepted posts that haven't been notified yet."""
+    config = load_config(config_path)
+
+    if not config.notifiers.enabled:
+        print("Notifications are disabled in config.")
+        return
+
+    db = Database(_DB_PATH)
+    records = db.get_accepted_unnotified()
+
+    if not records:
+        print("No unnotified accepted posts found.")
+        return
+
+    print(f"Found {len(records)} unnotified accepted post(s).")
+    print("Sending notifications...")
+
+    notifiers = build_notifiers(config.notifiers)
+    if not notifiers:
+        print("  No notifiers configured.")
+        return
+
+    scored_posts = [
+        BaseScoredPost(
+            post=record,
+            score=record.score or 0.0,
+            matched_keywords=record.matched_keywords,
+            ai_metadata=record.ai_metadata,
+        )
+        for record in records
+    ]
+
+    notify_accepted_posts(notifiers, scored_posts)
+
+    post_ids = [record.post_id for record in records]
+    db.mark_as_notified(post_ids)
+
+    print(f"  Notified via {len(notifiers)} notifier(s).")
+    print(f"  Marked {len(post_ids)} post(s) as notified.")
+
 
 def cmd_run(config_path: Path = Path("config.yaml")) -> None:
-    """Run both fetch and score pipelines sequentially."""
+    """Run fetch, score, and notify pipelines sequentially."""
     print("Running fetch pipeline...")
     cmd_fetch(config_path)
     print()
     print("Running scoring pipeline...")
     cmd_score(config_path)
+    print()
+    print("Running notification pipeline...")
+    cmd_notify(config_path)
 
 
 def _parse_date_filter(value: str, *, end_of_day: bool = False) -> datetime:
@@ -162,6 +196,7 @@ def cmd_view(
     show_accepted: bool = True,
     show_rejected: bool = False,
     show_pending: bool = False,
+    show_unnotified: bool = False,
     limit: Optional[int] = None,
     post_id: Optional[str] = None,
     verbose: bool = False,
@@ -171,14 +206,13 @@ def cmd_view(
     """View posts from database.
 
     The `since`/`until` filters apply to every listing mode (accepted,
-    rejected, pending) and are matched against each post's `fetched_at`
-    timestamp. They are ignored when `post_id` is given, since a single
-    post is always shown in full.
+    rejected, pending, unnotified) and are matched against each post's
+    `fetched_at` timestamp. They are ignored when `post_id` is given,
+    since a single post is always shown in full.
     """
     db = Database(_DB_PATH)
 
     if post_id:
-        # Date filters do not apply when viewing a single post by ID.
         _render_single_post(db, post_id, verbose)
         return
 
@@ -188,6 +222,32 @@ def cmd_view(
     except ValueError as e:
         print(f"Error: {e}")
         return
+
+    if show_unnotified:
+        print("=== Unnotified Accepted Posts ===\n")
+        posts = db.get_accepted_unnotified(limit=limit)
+        if since_dt or until_dt:
+            posts = [
+                p for p in posts
+                if (not since_dt or p.fetched_at >= since_dt)
+                and (not until_dt or p.fetched_at <= until_dt)
+            ]
+        if not posts:
+            print("No unnotified accepted posts found.\n")
+        else:
+            for idx, post in enumerate(posts, 1):
+                keywords = ", ".join(post.matched_keywords)
+                print(f"{idx}. [/r/{post.subreddit}]: {post.title}")
+                print(f"   Post ID:   {post.post_id}")
+                print(f"   Score: {post.score} | Keywords: {keywords}")
+                print(f"   URL: {post.url}")
+                print(f"   Fetched at: {post.fetched_at}")
+                print(f"   Scored at: {post.scored_at}")
+                if post.body:
+                    body_preview = post.body[:150].replace("\n", " ")
+                    suffix = "..." if len(post.body) > 150 else ""
+                    print(f"   Body: {body_preview}{suffix}")
+                print()
 
     if show_accepted:
         print("=== Accepted Posts ===\n")
