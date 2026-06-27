@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from src.interfaces.cli.commands import (
     cmd_fetch,
     cmd_score,
+    cmd_notify,
     cmd_run,
     cmd_stats,
     cmd_view,
@@ -73,8 +74,17 @@ def main():
         help="Path to config file (default: config.yaml)"
     )
 
-    # Run command (fetch + score)
-    run_parser = subparsers.add_parser("run", help="Fetch then score in one pass")
+    # Notify command
+    notify_parser = subparsers.add_parser("notify", help="Send notifications for unnotified accepted posts")
+    notify_parser.add_argument(
+        "--config",
+        type=Path,
+        default=Path("config.yaml"),
+        help="Path to config file (default: config.yaml)"
+    )
+
+    # Run command (fetch + score + notify)
+    run_parser = subparsers.add_parser("run", help="Fetch, score, and notify in one pass")
     run_parser.add_argument(
         "--config",
         type=Path,
@@ -98,6 +108,11 @@ def main():
         "--pending",
         action="store_true",
         help="Show pending posts"
+    )
+    view_parser.add_argument(
+        "--unnotified",
+        action="store_true",
+        help="Show accepted posts that haven't been notified yet"
     )
     view_parser.add_argument(
         "--limit",
@@ -174,18 +189,22 @@ def main():
         elif args.command == "score":
             cmd_score(config_path=args.config)
 
+        elif args.command == "notify":
+            cmd_notify(config_path=args.config)
+
         elif args.command == "run":
             cmd_run(config_path=args.config)
 
         elif args.command == "view":
             # Default: show accepted if nothing specified
             show_accepted = args.accepted or (
-                not args.accepted and not args.rejected and not args.pending and not args.id
+                not args.accepted and not args.rejected and not args.pending and not args.unnotified and not args.id
             )
             cmd_view(
                 show_accepted=show_accepted,
                 show_rejected=args.rejected,
                 show_pending=args.pending,
+                show_unnotified=args.unnotified,
                 limit=args.limit,
                 post_id=args.id,
                 verbose=args.view_verbose,
