@@ -6,6 +6,7 @@ pipeline, and print results. All processing logic lives in
 `src.interfaces.core.pipeline`.
 """
 
+from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -104,6 +105,43 @@ def cmd_run(config_path: Path = Path("config.yaml")) -> None:
     cmd_score(config_path)
 
 
+def _parse_date_filter(value: str, *, end_of_day: bool = False) -> datetime:
+    """Parse a user-supplied date filter into a datetime boundary.
+
+    Accepts either form:
+      - a non-negative day offset: "0"=today, "1"=yesterday, "2"=two days
+        ago, and so on.
+      - an absolute date in "YYYY-MM-DD" format.
+
+    The returned datetime is snapped to a day boundary so the value can be
+    compared directly against the stored `fetched_at` timestamps:
+      - end_of_day=False -> start of the day (00:00:00), used for `since`.
+      - end_of_day=True  -> end of the day (23:59:59.999999), used for `until`.
+
+    Raises:
+        ValueError: if the value is neither a valid day offset nor a
+            valid YYYY-MM-DD date.
+    """
+    value = value.strip()
+
+    if value.isdigit():
+        offset = int(value)
+        day = (datetime.now(timezone.utc) - timedelta(days=offset)).date()
+    else:
+        try:
+            day = datetime.strptime(value, "%Y-%m-%d").date()
+        except ValueError:
+            raise ValueError(
+                f"Invalid date filter '{value}'. "
+                "Use a day offset (0=today, 1=yesterday, 2=two days ago, ...) "
+                "or an absolute date in YYYY-MM-DD format."
+            )
+
+    if end_of_day:
+        return datetime.combine(day, time(23, 59, 59, 999999))
+    return datetime.combine(day, time.min)
+
+
 def cmd_view(
     show_accepted: bool = True,
     show_rejected: bool = False,
@@ -111,17 +149,35 @@ def cmd_view(
     limit: Optional[int] = None,
     post_id: Optional[str] = None,
     verbose: bool = False,
+    since: Optional[str] = None,
+    until: Optional[str] = None,
 ) -> None:
-    """View posts from database."""
+    """View posts from database.
+
+    The `since`/`until` filters apply to every listing mode (accepted,
+    rejected, pending) and are matched against each post's `fetched_at`
+    timestamp. They are ignored when `post_id` is given, since a single
+    post is always shown in full.
+    """
     db = Database(_DB_PATH)
 
     if post_id:
+        # Date filters do not apply when viewing a single post by ID.
         _render_single_post(db, post_id, verbose)
+        return
+
+    try:
+        since_dt = _parse_date_filter(since, end_of_day=False) if since else None
+        until_dt = _parse_date_filter(until, end_of_day=True) if until else None
+    except ValueError as e:
+        print(f"Error: {e}")
         return
 
     if show_accepted:
         print("=== Accepted Posts ===\n")
-        posts = db.get_posts_by_status("accepted", limit=limit)
+        posts = db.get_posts_by_status(
+            "accepted", limit=limit, since=since_dt, until=until_dt
+        )
         if not posts:
             print("No accepted posts found.\n")
         else:
@@ -131,6 +187,7 @@ def cmd_view(
                 print(f"   Post ID:   {post.post_id}")
                 print(f"   Score: {post.score} | Keywords: {keywords}")
                 print(f"   URL: {post.url}")
+                print(f"   Fetched at: {post.fetched_at}")
                 print(f"   Scored at: {post.scored_at}")
                 if post.body:
                     body_preview = post.body[:150].replace("\n", " ")
@@ -140,7 +197,9 @@ def cmd_view(
 
     if show_rejected:
         print("=== Rejected Posts ===\n")
-        posts = db.get_posts_by_status("rejected", limit=limit)
+        posts = db.get_posts_by_status(
+            "rejected", limit=limit, since=since_dt, until=until_dt
+        )
         if not posts:
             print("No rejected posts found.\n")
         else:
@@ -150,6 +209,7 @@ def cmd_view(
                 print(f"   Post ID:   {post.post_id}")
                 print(f"   Score: {post.score} | Keywords: {keywords}")
                 print(f"   URL: {post.url}")
+                print(f"   Fetched at: {post.fetched_at}")
                 print(f"   Scored at: {post.scored_at}")
                 if post.rejection_reason:
                     print(f"   Reason: {post.rejection_reason}")
@@ -157,7 +217,9 @@ def cmd_view(
 
     if show_pending:
         print("=== Pending Posts ===\n")
-        posts = db.get_posts_by_status("pending", limit=limit)
+        posts = db.get_posts_by_status(
+            "pending", limit=limit, since=since_dt, until=until_dt
+        )
         if not posts:
             print("No pending posts found.\n")
         else:
@@ -193,9 +255,6 @@ def _render_single_post(db: Database, post_id: str, verbose: bool = False) -> No
     if post.rejection_reason:
         print(f"  Reason:    {post.rejection_reason}")
     if post.body:
-        # body_preview = post.body[:200].replace("\n", " ")
-        # suffix = "..." if len(post.body) > 200 else ""
-        # print(f"  Body:      {body_preview}{suffix}")
         print(f"  Body:      {post.body}")
 
     if post.ai_metadata and post.ai_metadata.get("provider"):
@@ -236,7 +295,6 @@ def _render_single_post(db: Database, post_id: str, verbose: bool = False) -> No
             print()
             print("  --- Raw Response ---")
             print(meta["raw_response"])
-
 
 
 def cmd_stats(providers_only: bool = False) -> None:

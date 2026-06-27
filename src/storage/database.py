@@ -4,7 +4,7 @@
 import sqlite3
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -244,13 +244,40 @@ class Database:
         return [self._row_to_record(row) for row in cursor.fetchall()]
 
     def get_posts_by_status(
-        self, status: str, limit: Optional[int] = None
+        self,
+        status: str,
+        limit: Optional[int] = None,
+        since: Optional[datetime] = None,
+        until: Optional[datetime] = None,
     ) -> list[PostRecord]:
-        """Get all posts with the given status."""
-        query = "SELECT * FROM posts WHERE status = ? ORDER BY fetched_at DESC"
+        """Get all posts with the given status, optionally filtered by date range.
+
+        Args:
+            status: Post status to filter by.
+            limit: Maximum number of results to return.
+            since: Only include posts fetched at or after this time.
+            until: Only include posts fetched at or before this time.
+
+        Both `since` and `until` are inclusive.
+        """
+        conditions = ["status = ?"]
+        params: list[Any] = [status]
+
+        if since is not None:
+            conditions.append("fetched_at >= ?")
+            params.append(since.strftime("%Y-%m-%d %H:%M:%S"))
+
+        if until is not None:
+            conditions.append("fetched_at <= ?")
+            params.append(until.strftime("%Y-%m-%d %H:%M:%S"))
+
+        where_clause = " AND ".join(conditions)
+        query = f"SELECT * FROM posts WHERE {where_clause} ORDER BY fetched_at DESC"
+
         if limit:
             query += f" LIMIT {limit}"
-        cursor = self._conn.execute(query, (status,))
+
+        cursor = self._conn.execute(query, params)
         return [self._row_to_record(row) for row in cursor.fetchall()]
 
     def count_posts_by_status(self) -> dict[str, int]:
@@ -283,7 +310,7 @@ class Database:
 
     def get_recent_post_ids(self, hours: int = 24) -> set[str]:
         """Get post IDs fetched in the last N hours."""
-        cutoff = datetime.now() - timedelta(hours=hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
         cursor = self._conn.execute(
             "SELECT post_id FROM posts WHERE fetched_at > ?", (cutoff.isoformat(),)
         )

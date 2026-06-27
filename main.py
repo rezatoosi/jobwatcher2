@@ -117,7 +117,26 @@ def main():
         dest="view_verbose",
         help="Include raw_response in AI metadata display"
     )
-
+    view_parser.add_argument(
+        "--since",
+        type=str,
+        default=None,
+        help=(
+            "Filter posts from this date/day onwards. "
+            "Accepts YYYY-MM-DD format (e.g. 2026-06-20) or day offset (0=today, 1=yesterday, 2=day before, etc.). "
+            "Ignored when --id is used."
+        )
+    )
+    view_parser.add_argument(
+        "--until",
+        type=str,
+        default=None,
+        help=(
+            "Filter posts up to this date/day. "
+            "Accepts YYYY-MM-DD format (e.g. 2026-06-27) or day offset (0=today, 1=yesterday, 2=day before, etc.). "
+            "Ignored when --id is used."
+        )
+    )
 
     # Stats command
     stats_parser = subparsers.add_parser("stats", help="Display database statistics")
@@ -157,6 +176,8 @@ def main():
                 limit=args.limit,
                 post_id=args.id,
                 verbose=args.view_verbose,
+                since=args.since,
+                until=args.until,
             )
 
         elif args.command == "stats":
