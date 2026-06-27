@@ -79,7 +79,6 @@ keywords:
   gulp: 2
   sass: 2
   scss: 2
-  less: 2
 
   HIT: 5
   LMS: 5
@@ -190,11 +189,11 @@ rate_limiting:
   # Maximum number of retry attempts for rate limit errors
   max_retries: 3
   # Initial delay in seconds before first retry
-  initial_backoff: 5.00
+  initial_backoff: 10.00
   # Maximum delay in seconds between retries
   max_backoff: 60.0
   # Multiplier for exponential backoff (delay *= backoff_multiplier after each retry)
-  backoff_multiplier: 2.0
+  backoff_multiplier: 3.0
 
 network:
   # Leave proxy empty ("") to connect directly without a proxy
