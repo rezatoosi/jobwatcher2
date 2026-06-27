@@ -1,5 +1,6 @@
 posts.db
 /*.db
+/*.sql
 /logs
 /.ai
 
