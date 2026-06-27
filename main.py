@@ -13,6 +13,7 @@ from src.interfaces.cli.commands import (
     cmd_run,
     cmd_stats,
     cmd_view,
+    cmd_daemon,
 )
 
 
@@ -146,6 +147,24 @@ def main():
         help="Show AI provider usage statistics"
     )
 
+    # Daemon command
+    daemon_parser = subparsers.add_parser(
+        "daemon",
+        help="Run as daemon with scheduled daily execution"
+    )
+    daemon_parser.add_argument(
+        "--hour",
+        type=int,
+        required=True,
+        help="Hour of day to run (0-23, UTC)"
+    )
+    daemon_parser.add_argument(
+        "--minute",
+        type=int,
+        default=0,
+        help="Minute of hour to run (0-59, default: 0)"
+    )
+
     args = parser.parse_args()
 
     setup_logging(verbose=args.verbose)
@@ -182,6 +201,12 @@ def main():
 
         elif args.command == "stats":
             cmd_stats(providers_only=args.providers)
+
+        elif args.command == "daemon":
+            cmd_daemon(
+                hour=args.hour,
+                minute=args.minute,
+            )
 
     except KeyboardInterrupt:
         print("\n\nInterrupted by user.")
