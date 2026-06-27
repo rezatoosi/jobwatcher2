@@ -13,13 +13,12 @@ import pytz
 from src.interfaces.cli.commands import cmd_run
 
 
-def run_daemon(config_path: Path, hour: int, minute: int = 0) -> None:
+def run_daemon(config_path: Path, run_time: str) -> None:
     """Run as daemon with scheduled daily execution.
 
     Args:
         config_path: Path to config.yaml
-        hour: Hour of day (0-23) in UTC
-        minute: Minute of hour (0-59)
+        run_time: Time of day in "HH:MM" format (UTC)
 
     The daemon runs fetch + score at the specified time each day.
     Press Ctrl+C to stop gracefully.
@@ -36,8 +35,7 @@ def run_daemon(config_path: Path, hour: int, minute: int = 0) -> None:
         else:
             print(f"[{now}] Scheduled run completed.\n")
 
-    schedule_time = f"{hour:02d}:{minute:02d}"
-    schedule.every().day.at(schedule_time, pytz.utc).do(job)
+    schedule.every().day.at(run_time, pytz.utc).do(job)
 
     # Graceful shutdown handler
     def _signal_handler(sig, frame):
@@ -46,7 +44,7 @@ def run_daemon(config_path: Path, hour: int, minute: int = 0) -> None:
 
     signal.signal(signal.SIGINT, _signal_handler)
 
-    print(f"Daemon started. Will run daily at {schedule_time} UTC.")
+    print(f"Daemon started. Will run daily at {run_time} UTC.")
     print("Press Ctrl+C to stop.\n")
 
     while True:

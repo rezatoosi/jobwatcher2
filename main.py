@@ -153,16 +153,10 @@ def main():
         help="Run as daemon with scheduled daily execution"
     )
     daemon_parser.add_argument(
-        "--hour",
-        type=int,
+        "--run-time",
+        type=str,
         required=True,
-        help="Hour of day to run (0-23, UTC)"
-    )
-    daemon_parser.add_argument(
-        "--minute",
-        type=int,
-        default=0,
-        help="Minute of hour to run (0-59, default: 0)"
+        help="Time of day to run in HH:MM format (e.g. 03:00, 20:30) — UTC"
     )
 
     args = parser.parse_args()
@@ -203,10 +197,7 @@ def main():
             cmd_stats(providers_only=args.providers)
 
         elif args.command == "daemon":
-            cmd_daemon(
-                hour=args.hour,
-                minute=args.minute,
-            )
+            cmd_daemon(run_time=args.run_time)
 
     except KeyboardInterrupt:
         print("\n\nInterrupted by user.")

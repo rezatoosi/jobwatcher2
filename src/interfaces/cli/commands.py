@@ -365,24 +365,18 @@ def _render_provider_stats(db: Database) -> None:
             )
         print()
 
-def cmd_daemon(
-    config_path: Path = Path("config.yaml"),
-    hour: int = 3,
-    minute: int = 0,
-) -> None:
+
+def cmd_daemon(run_time: str) -> None:
     """Start daemon mode for scheduled runs.
     
     Args:
-        config_path: Path to config.yaml
-        hour: Hour of day (0-23) in UTC
-        minute: Minute of hour (0-59)
+        run_time: Time of day in "HH:MM" format (UTC)
     """
-    if not (0 <= hour <= 23):
-        print("Error: hour must be between 0 and 23.")
-        return
-    if not (0 <= minute <= 59):
-        print("Error: minute must be between 0 and 59.")
+    import re
+    
+    if not re.match(r'^([01]\d|2[0-3]):([0-5]\d)$', run_time):
+        print("Error: run_time must be in HH:MM format (00:00 to 23:59).")
         return
     
     from src.interfaces.scheduler.daemon import run_daemon
-    run_daemon(config_path, hour, minute)
+    run_daemon(Path("config.yaml"), run_time)
