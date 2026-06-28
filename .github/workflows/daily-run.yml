@@ -45,5 +45,5 @@ jobs:
         with:
           name: posts-db
           path: ./posts.db
-          retention-days: 400
+          retention-days: 90
           overwrite: true
