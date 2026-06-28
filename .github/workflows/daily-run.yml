@@ -2,7 +2,7 @@ name: Daily Post Monitor
 
 on:
   schedule:
-    - cron: '0 8 * * *'
+    - cron: '30 15 * * *'
   workflow_dispatch:
 
 jobs:
