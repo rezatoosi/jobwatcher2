@@ -1,0 +1,19 @@
+name: Export Database to Artifacts
+
+on:
+  workflow_dispatch:
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Upload database as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: posts-db
+          path: ./posts.db
+          if-no-files-found: error
+          retention-days: 90
