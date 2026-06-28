@@ -20,10 +20,14 @@ from src.notifiers.factory import build_notifiers
 from src.notifications.service import notify_accepted_posts
 
 
-_DB_PATH = "posts.db"
+_DEFAULT_DB_PATH = "posts.db"
+_DEFAULT_CONFIG_PATH = "config.yaml"
 
 
-def cmd_fetch(config_path: Path = Path("config.yaml")) -> None:
+def cmd_fetch(
+        config_path: Path = Path(_DEFAULT_CONFIG_PATH),
+        db_path: Path = Path(_DEFAULT_DB_PATH)
+        ) -> None:
     """Fetch new posts from Reddit and save as pending."""
     config = load_config(config_path)
 
@@ -32,7 +36,7 @@ def cmd_fetch(config_path: Path = Path("config.yaml")) -> None:
     print(f"  Fetch limit: {config.fetch_limit}")
     print()
 
-    db = Database(_DB_PATH)
+    db = Database(db_path)
     pipeline = FetchPipeline(config, db)
 
     print("Fetching posts from Reddit...")
@@ -51,7 +55,10 @@ def cmd_fetch(config_path: Path = Path("config.yaml")) -> None:
     print("=" * 10)
 
 
-def cmd_score(config_path: Path = Path("config.yaml")) -> None:
+def cmd_score(
+        config_path: Path = Path(_DEFAULT_CONFIG_PATH),
+        db_path: Path = Path(_DEFAULT_DB_PATH)
+        ) -> None:
     """Score pending posts with keyword + AI scoring."""
     config = load_config(config_path)
 
@@ -59,7 +66,7 @@ def cmd_score(config_path: Path = Path("config.yaml")) -> None:
     print(f"  Keywords: {len(config.keywords)} keywords")
     print(f"  Keyword threshold: {config.scoring.keyword_threshold}")
 
-    db = Database(_DB_PATH)
+    db = Database(db_path)
     pipeline = ScoringPipeline(config, db)
 
     print(f"  AI scoring: {'enabled' if pipeline.ai_scorer else 'disabled'}")
@@ -101,7 +108,10 @@ def cmd_score(config_path: Path = Path("config.yaml")) -> None:
     print("=" * 10)
 
 
-def cmd_notify(config_path: Path = Path("config.yaml")) -> None:
+def cmd_notify(
+        config_path: Path = Path(_DEFAULT_CONFIG_PATH),
+        db_path: Path = Path(_DEFAULT_DB_PATH)
+        ) -> None:
     """Send notifications for accepted posts that haven't been notified yet."""
     config = load_config(config_path)
 
@@ -109,7 +119,7 @@ def cmd_notify(config_path: Path = Path("config.yaml")) -> None:
         print("Notifications are disabled in config.")
         return
 
-    db = Database(_DB_PATH)
+    db = Database(db_path)
     records = db.get_accepted_unnotified()
 
     if not records:
@@ -143,16 +153,19 @@ def cmd_notify(config_path: Path = Path("config.yaml")) -> None:
     print(f"  Marked {len(post_ids)} post(s) as notified.")
 
 
-def cmd_run(config_path: Path = Path("config.yaml")) -> None:
+def cmd_run(
+        config_path: Path = Path(_DEFAULT_CONFIG_PATH),
+        db_path: Path = Path(_DEFAULT_DB_PATH)
+        ) -> None:
     """Run fetch, score, and notify pipelines sequentially."""
     print("Running fetch pipeline...")
-    cmd_fetch(config_path)
+    cmd_fetch(config_path, db_path)
     print()
     print("Running scoring pipeline...")
-    cmd_score(config_path)
+    cmd_score(config_path, db_path)
     print()
     print("Running notification pipeline...")
-    cmd_notify(config_path)
+    cmd_notify(config_path, db_path)
 
 
 def _parse_date_filter(value: str, *, end_of_day: bool = False) -> datetime:
@@ -193,6 +206,7 @@ def _parse_date_filter(value: str, *, end_of_day: bool = False) -> datetime:
 
 
 def cmd_view(
+    db_path: Path = Path(_DEFAULT_DB_PATH),
     show_accepted: bool = True,
     show_rejected: bool = False,
     show_pending: bool = False,
@@ -210,7 +224,7 @@ def cmd_view(
     `fetched_at` timestamp. They are ignored when `post_id` is given,
     since a single post is always shown in full.
     """
-    db = Database(_DB_PATH)
+    db = Database(db_path)
 
     if post_id:
         _render_single_post(db, post_id, verbose)
@@ -371,9 +385,12 @@ def _render_single_post(db: Database, post_id: str, verbose: bool = False) -> No
             print(meta["raw_response"])
 
 
-def cmd_stats(providers_only: bool = False) -> None:
+def cmd_stats(
+        db_path: Path = Path(_DEFAULT_DB_PATH),
+        providers_only: bool = False
+        ) -> None:
     """Display database statistics."""
-    db = Database(_DB_PATH)
+    db = Database(db_path)
 
     if providers_only:
         _render_provider_stats(db)
@@ -442,7 +459,11 @@ def _render_provider_stats(db: Database) -> None:
         print()
 
 
-def cmd_daemon(run_time: str) -> None:
+def cmd_daemon(
+        config_path: Path = Path(_DEFAULT_CONFIG_PATH),
+        db_path: Path = Path(_DEFAULT_DB_PATH),
+        run_time: str = ""
+        ) -> None:
     """Start daemon mode for scheduled runs.
     
     Args:
@@ -455,4 +476,4 @@ def cmd_daemon(run_time: str) -> None:
         return
     
     from src.interfaces.scheduler.daemon import run_daemon
-    run_daemon(Path("config.yaml"), run_time)
+    run_daemon(config_path, db_path, run_time)

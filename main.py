@@ -40,6 +40,26 @@ def setup_logging(verbose: bool = False):
     root_logger.addHandler(file_handler)
 
 
+def _add_db_arg(parser: argparse.ArgumentParser) -> None:
+    """Add the --database argument to a subparser."""
+    parser.add_argument(
+        "--database", "-db",
+        type=Path,
+        default=Path("posts.db"),
+        help="Path to SQLite database (default: posts.db)"
+    )
+
+
+def _add_config_arg(parser: argparse.ArgumentParser) -> None:
+    """Add the --config argument to a subparser."""
+    parser.add_argument(
+        "--config", "-c",
+        type=Path,
+        default=Path("config.yaml"),
+        help="Path to config file (default: config.yaml)"
+    )
+
+
 def main():
     """Run the Reddit post monitoring CLI."""
     load_dotenv()
@@ -58,39 +78,23 @@ def main():
 
     # Fetch command
     fetch_parser = subparsers.add_parser("fetch", help="Fetch new posts from Reddit")
-    fetch_parser.add_argument(
-        "--config",
-        type=Path,
-        default=Path("config.yaml"),
-        help="Path to config file (default: config.yaml)"
-    )
+    _add_config_arg(fetch_parser)
+    _add_db_arg(fetch_parser)
 
     # Score command
     score_parser = subparsers.add_parser("score", help="Score pending posts")
-    score_parser.add_argument(
-        "--config",
-        type=Path,
-        default=Path("config.yaml"),
-        help="Path to config file (default: config.yaml)"
-    )
+    _add_config_arg(score_parser)
+    _add_db_arg(score_parser)
 
     # Notify command
     notify_parser = subparsers.add_parser("notify", help="Send notifications for unnotified accepted posts")
-    notify_parser.add_argument(
-        "--config",
-        type=Path,
-        default=Path("config.yaml"),
-        help="Path to config file (default: config.yaml)"
-    )
+    _add_config_arg(notify_parser)
+    _add_db_arg(notify_parser)
 
     # Run command (fetch + score + notify)
     run_parser = subparsers.add_parser("run", help="Fetch, score, and notify in one pass")
-    run_parser.add_argument(
-        "--config",
-        type=Path,
-        default=Path("config.yaml"),
-        help="Path to config file (default: config.yaml)"
-    )
+    _add_config_arg(run_parser)
+    _add_db_arg(run_parser)
 
     # View command
     view_parser = subparsers.add_parser("view", help="View posts from database")
@@ -153,6 +157,7 @@ def main():
             "Ignored when --id is used."
         )
     )
+    _add_db_arg(view_parser)
 
     # Stats command
     stats_parser = subparsers.add_parser("stats", help="Display database statistics")
@@ -161,6 +166,7 @@ def main():
         action="store_true",
         help="Show AI provider usage statistics"
     )
+    _add_db_arg(stats_parser)
 
     # Daemon command
     daemon_parser = subparsers.add_parser(
@@ -173,6 +179,8 @@ def main():
         required=True,
         help="Time of day to run in HH:MM format (e.g. 03:00, 20:30) — UTC"
     )
+    _add_config_arg(daemon_parser)
+    _add_db_arg(daemon_parser)
 
     args = parser.parse_args()
 
@@ -184,23 +192,23 @@ def main():
 
     try:
         if args.command == "fetch":
-            cmd_fetch(config_path=args.config)
+            cmd_fetch(config_path=args.config, db_path=args.database)
 
         elif args.command == "score":
-            cmd_score(config_path=args.config)
+            cmd_score(config_path=args.config, db_path=args.database)
 
         elif args.command == "notify":
-            cmd_notify(config_path=args.config)
+            cmd_notify(config_path=args.config, db_path=args.database)
 
         elif args.command == "run":
-            cmd_run(config_path=args.config)
+            cmd_run(config_path=args.config, db_path=args.database)
 
         elif args.command == "view":
-            # Default: show accepted if nothing specified
             show_accepted = args.accepted or (
                 not args.accepted and not args.rejected and not args.pending and not args.unnotified and not args.id
             )
             cmd_view(
+                db_path=args.database,
                 show_accepted=show_accepted,
                 show_rejected=args.rejected,
                 show_pending=args.pending,
@@ -213,10 +221,10 @@ def main():
             )
 
         elif args.command == "stats":
-            cmd_stats(providers_only=args.providers)
+            cmd_stats(db_path=args.database, providers_only=args.providers)
 
         elif args.command == "daemon":
-            cmd_daemon(run_time=args.run_time)
+            cmd_daemon(config_path=args.config, db_path=args.database, run_time=args.run_time)
 
     except KeyboardInterrupt:
         print("\n\nInterrupted by user.")

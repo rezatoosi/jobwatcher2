@@ -13,7 +13,7 @@ import pytz
 from src.interfaces.cli.commands import cmd_run
 
 
-def run_daemon(config_path: Path, run_time: str) -> None:
+def run_daemon(config_path: Path, db_path: Path, run_time: str) -> None:
     """Run as daemon with scheduled daily execution.
 
     Args:
@@ -29,7 +29,7 @@ def run_daemon(config_path: Path, run_time: str) -> None:
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
         print(f"\n[{now}] Starting scheduled run...")
         try:
-            cmd_run(config_path)
+            cmd_run(config_path, db_path)
         except Exception as e:
             print(f"[{now}] Error during run: {e}")
         else:
