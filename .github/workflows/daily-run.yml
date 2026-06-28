@@ -59,3 +59,12 @@ jobs:
           path: ./posts.db
           retention-days: 30
           overwrite: true
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-log
+          path: ./logs/app.log
+          retention-days: 10
+          overwrite: true
