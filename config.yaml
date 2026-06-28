@@ -210,5 +210,6 @@ notifiers:
 
 network:
   # Leave proxy empty ("") to connect directly without a proxy
-  proxy: "http://127.0.0.1:32541"
+  # proxy: "http://127.0.0.1:32541"
+  proxy: ""
   request_timeout: 60
