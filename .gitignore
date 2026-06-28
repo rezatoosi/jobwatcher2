@@ -1,8 +1,8 @@
-posts.db
 /*.db
 /*.sql
 /logs
 /.ai
+!posts.db
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
