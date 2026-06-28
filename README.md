@@ -6,6 +6,17 @@ Why? Because you don't have time to scroll through dozens of subreddits every da
 
 Built to automate my own job hunt. Runs in GitHub Actions with zero hosting cost.
 
+## Features
+
+- **Multi-subreddit monitoring** with configurable fetch intervals
+- **Dual-stage scoring pipeline**:
+  - Fast keyword-based filtering
+  - AI-powered relevance scoring (supports OpenAI, Anthropic, and custom providers)
+- **Automatic failover** between AI providers with exponential backoff
+- **Telegram notifications** for high-scoring posts
+- **SQLite persistence** for posts, scores, and notification history
+- **Daemon mode** for continuous background monitoring
+- **CLI interface** for manual fetching, scoring, and database inspection
 
 ## How It Works
 
@@ -49,6 +60,25 @@ keywords:
   bot: 5
 ```
 
+Example Providers Section:
+
+```yaml
+ai_providers:
+  enabled: true
+  max_tokens: 2048
+  providers:
+    - name: groq
+      enabled: true
+      api_key: ${GROQ_API_KEY}
+      model: llama-3.3-70b-versatile
+      priority: 2
+    - name: google
+      enabled: true
+      api_key: ${GOOGLE_API_KEY}
+      model: gemini-2.5-flash
+      priority: 3
+```
+
 AI evaluates posts based on system prompt configured in config file.
 
 In my case, AI evaluates job anouncements on five dimensions:
@@ -57,6 +87,12 @@ In my case, AI evaluates job anouncements on five dimensions:
 - **urgency**: time-sensitivity (ASAP, immediate start)
 - **risk_free**: job clarity and reliability (0=sketchy, 100=solid)
 - **score**: overall attractiveness (0-100)
+
+## Error Handling
+- **Rate limiting**: Exponential backoff with configurable retry limits
+- **AI provider failures**: Automatic failover to next provider by priority
+- **Network errors**: Retry with timeout and backoff
+- **Duplicate detection**: Posts are fetched once and marked as fetched
 
 ## Usage
 
