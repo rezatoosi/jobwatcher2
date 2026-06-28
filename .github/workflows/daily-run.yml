@@ -2,7 +2,7 @@ name: Daily Post Monitor
 
 on:
   schedule:
-    - cron: '30 15 * * *'
+    - cron: '43 15 * * *'
   workflow_dispatch:
 
 jobs:
@@ -21,11 +21,15 @@ jobs:
         run: pip install -r requirements.txt
       
       - name: Download previous database
-        uses: actions/download-artifact@v4
+        uses: dawidd6/action-download-artifact@v3
         with:
+          workflow: .github/workflows/daily-run.yml
+          branch: main
+          workflow_conclusion: success
           name: posts-db
           path: .
-        continue-on-error: true
+          if_no_artifact_found: warn
+
       
       - name: Run monitoring
         env:
