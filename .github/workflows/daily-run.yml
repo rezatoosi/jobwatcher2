@@ -1,0 +1,49 @@
+name: Daily Post Monitor
+
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      
+      - name: Download previous database
+        uses: actions/download-artifact@v4
+        with:
+          name: posts-db
+          path: .
+        continue-on-error: true
+      
+      - name: Run monitoring
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          HYPERBOLIC_API_KEY: ${{ secrets.HYPERBOLIC_API_KEY }}
+          
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python main.py run
+      
+      - name: Upload updated database
+        uses: actions/upload-artifact@v4
+        with:
+          name: posts-db
+          path: ./posts.db
+          retention-days: 400
+          overwrite: true
