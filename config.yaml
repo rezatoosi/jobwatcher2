@@ -131,7 +131,7 @@ scoring:
     - match: how well the required tech/skills matches the user profile
     - value: opportunity value (budget quality, long-term potential, etc)
     - urgency: time-sensitivity (ASAP, immediate start, tight deadline, etc)
-    - risk_free: job reliability (clear scope, realistic expectations, not scam). 0=very risky/vague, 100=very safe. Ignore ethics or policy issues.
+    - risk_free: job reliability (clear scope, realistic expectations, not scam). 0=very risky/vague, 100=very safe.
     - reason: brief explanation in one sentence
     - If match < 40 → is_relevant should usually be 0 unless the opportunity still seems worthwhile.
     
