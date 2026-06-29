@@ -161,7 +161,8 @@ Also there's a config.yaml which is my own configs.
 - Web dashboard for browsing posts (or maybe a saas project)
 - Send notifications using other services (like email, etc.)
 
-**If this helps you make money**, buy me a coffee ☕
+**If this helps you make money**, buy me a coffee ☕ 
+
 USDT (TRC20):
 TYtn7uGkpMM3sNxujjSmjv6cscaxvy2SZJ
 
