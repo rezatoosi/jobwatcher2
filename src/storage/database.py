@@ -127,7 +127,7 @@ class Database:
                     (post_id, subreddit, title, body, url, status, fetched_at)
                 VALUES (?, ?, ?, ?, ?, 'pending', ?)
                 """,
-                (post_id, subreddit, title, body, url, fetched_at),
+                (post_id, subreddit, title, body, url, fetched_at.strftime("%Y-%m-%d %H:%M:%S")),
             )
         else:
             self._conn.execute(
@@ -168,7 +168,7 @@ class Database:
                     keywords_str,
                     ai_metadata_str,
                     rejection_reason,
-                    scored_at,
+                    scored_at.strftime("%Y-%m-%d %H:%M:%S"),
                     post_id,
                 ),
             )
@@ -338,14 +338,6 @@ class Database:
         )
         return cursor.fetchone() is not None
 
-    def get_recent_post_ids(self, hours: int = 24) -> set[str]:
-        """Get post IDs fetched in the last N hours."""
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
-        cursor = self._conn.execute(
-            "SELECT post_id FROM posts WHERE fetched_at > ?", (cutoff.isoformat(),)
-        )
-        return {row["post_id"] for row in cursor.fetchall()}
-
     def get_post_by_id(self, post_id: str) -> Optional[PostRecord]:
         """Get a single post by ID, or None if not found."""
         cursor = self._conn.execute("SELECT * FROM posts WHERE post_id = ?", (post_id,))
@@ -358,6 +350,21 @@ class Database:
             "SELECT ai_metadata FROM posts WHERE ai_metadata IS NOT NULL"
         )
         return [self._parse_ai_metadata(row["ai_metadata"]) for row in cursor.fetchall()]
+    
+    def delete_posts_older_than(self, cutoff: datetime) -> int:
+        """Delete posts older than the given cutoff. Returns number of deleted rows.
+
+        Args:
+            cutoff: The cutoff point; posts fetched before it are removed,
+                except those with status 'accepted'.
+        """
+        cutoff_str = cutoff.strftime("%Y-%m-%d %H:%M:%S")
+        cursor = self._conn.execute(
+            "DELETE FROM posts WHERE fetched_at < ? AND status != 'accepted'",
+            (cutoff_str,),
+        )
+        self._conn.commit()
+        return cursor.rowcount
 
     def close(self):
         """Close the database connection."""

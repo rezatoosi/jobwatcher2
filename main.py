@@ -15,6 +15,7 @@ from src.interfaces.cli.commands import (
     cmd_stats,
     cmd_view,
     cmd_daemon,
+    cmd_cleanup,
 )
 
 
@@ -60,6 +61,28 @@ def _add_config_arg(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_cleanup_args(parser: argparse.ArgumentParser) -> None:
+    """Add --cleanup and --cleanup-until arguments to a subparser."""
+    parser.add_argument(
+        "--cleanup",
+        action="store_const",
+        const=True,
+        default=None,
+        help="Enable cleanup before execution (overrides config cleanup_before_fetch)"
+    )
+    parser.add_argument(
+        "--cleanup-until",
+        type=str,
+        default=None,
+        dest="cleanup_until",
+        help=(
+            "Delete posts older than this point. "
+            "Accepts YYYY-MM-DD (e.g. 2026-06-01) or day offset (e.g. 30= keep last 30 days). "
+            "Overrides config cleanup_until. Has no effect if cleanup is disabled."
+        )
+    )
+
+
 def main():
     """Run the Reddit post monitoring CLI."""
     load_dotenv()
@@ -80,6 +103,7 @@ def main():
     fetch_parser = subparsers.add_parser("fetch", help="Fetch new posts from Reddit")
     _add_config_arg(fetch_parser)
     _add_db_arg(fetch_parser)
+    _add_cleanup_args(fetch_parser)
 
     # Score command
     score_parser = subparsers.add_parser("score", help="Score pending posts")
@@ -95,6 +119,22 @@ def main():
     run_parser = subparsers.add_parser("run", help="Fetch, score, and notify in one pass")
     _add_config_arg(run_parser)
     _add_db_arg(run_parser)
+    _add_cleanup_args(run_parser)
+
+    # Cleanup command
+    cleanup_parser = subparsers.add_parser("cleanup", help="Delete old posts from database")
+    _add_config_arg(cleanup_parser)
+    _add_db_arg(cleanup_parser)
+    cleanup_parser.add_argument(
+        "--until",
+        type=str,
+        required=False,
+        help=(
+            "Delete posts older than this point. "
+            "Accepts YYYY-MM-DD (e.g. 2026-06-01) or day offset (e.g. 30= keep last 30 days). "
+            "Overrides config cleanup_until. Has no effect if cleanup is disabled."
+        )
+    )
 
     # View command
     view_parser = subparsers.add_parser("view", help="View posts from database")
@@ -192,7 +232,11 @@ def main():
 
     try:
         if args.command == "fetch":
-            cmd_fetch(config_path=args.config, db_path=args.database)
+            cmd_fetch(
+                config_path=args.config,
+                db_path=args.database,
+                cleanup=args.cleanup,
+                cleanup_until=args.cleanup_until,)
 
         elif args.command == "score":
             cmd_score(config_path=args.config, db_path=args.database)
@@ -201,7 +245,19 @@ def main():
             cmd_notify(config_path=args.config, db_path=args.database)
 
         elif args.command == "run":
-            cmd_run(config_path=args.config, db_path=args.database)
+            cmd_run(
+                config_path=args.config,
+                db_path=args.database,
+                cleanup=args.cleanup,
+                cleanup_until=args.cleanup_until,
+            )
+
+        elif args.command == "cleanup":
+            cmd_cleanup(
+                config_path=args.config,
+                db_path=args.database,
+                until=args.until
+            )
 
         elif args.command == "view":
             show_accepted = args.accepted or (
