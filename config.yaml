@@ -184,6 +184,14 @@ ai_providers:
 request_delay: 60
 fetch_limit: 30
 
+# Database cleanup after each run
+# Whether to delete old posts after each run
+cleanup_before_fetch: true
+
+# Keep posts from the last N days; olderones are deleted (in db cleanup)
+cleanup_until: 30
+
+
 # Rate limiting and backoff configuration (global, applied across all AI providers)
 rate_limiting:
   # Maximum number of retry attempts for rate limit errors

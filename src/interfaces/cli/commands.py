@@ -26,7 +26,9 @@ _DEFAULT_CONFIG_PATH = "config.yaml"
 
 def cmd_fetch(
         config_path: Path = Path(_DEFAULT_CONFIG_PATH),
-        db_path: Path = Path(_DEFAULT_DB_PATH)
+        db_path: Path = Path(_DEFAULT_DB_PATH),
+        cleanup: Optional[bool] = None,
+        cleanup_until: Optional[str] = None,
         ) -> None:
     """Fetch new posts from Reddit and save as pending."""
     config = load_config(config_path)
@@ -35,6 +37,12 @@ def cmd_fetch(
     print(f"  Subreddits: {', '.join(config.subreddits)}")
     print(f"  Fetch limit: {config.fetch_limit}")
     print()
+
+    do_cleanup = cleanup if cleanup is not None else config.cleanup_before_fetch
+    if do_cleanup:
+        print("Running pre-fetch cleanup...")
+        cmd_cleanup(config_path=config_path, db_path=db_path, until=cleanup_until)
+        print()
 
     db = Database(db_path)
     pipeline = FetchPipeline(config, db)
@@ -155,11 +163,13 @@ def cmd_notify(
 
 def cmd_run(
         config_path: Path = Path(_DEFAULT_CONFIG_PATH),
-        db_path: Path = Path(_DEFAULT_DB_PATH)
+        db_path: Path = Path(_DEFAULT_DB_PATH),
+        cleanup: Optional[bool] = None,
+        cleanup_until: Optional[str] = None,
         ) -> None:
     """Run fetch, score, and notify pipelines sequentially."""
     print("Running fetch pipeline...")
-    cmd_fetch(config_path, db_path)
+    cmd_fetch(config_path, db_path, cleanup=cleanup, cleanup_until=cleanup_until)
     print()
     print("Running scoring pipeline...")
     cmd_score(config_path, db_path)
@@ -477,3 +487,44 @@ def cmd_daemon(
     
     from src.interfaces.scheduler.daemon import run_daemon
     run_daemon(config_path, db_path, run_time)
+
+
+def cmd_cleanup(
+        config_path: Path = Path(_DEFAULT_CONFIG_PATH),
+        db_path: Path = Path(_DEFAULT_DB_PATH),
+        until: Optional[str] = None,
+        ) -> None:
+    """Delete old posts from the database, preserving accepted ones.
+
+    Posts whose `fetched_at` falls before the retention cutoff are removed,
+    except those with status 'accepted'.
+
+    The retention window comes from `config.cleanup_until` by default, but can
+    be overridden via `until`, which accepts the same forms as the
+    `since`/`until` filters in `view`:
+      - a non-negative day offset: "30" means 30 days ago.
+      - an absolute date in "YYYY-MM-DD" format.
+    """
+    raw = until if until is not None else str(load_config(config_path).cleanup_until)
+
+    try:
+        cutoff = _parse_date_filter(raw, end_of_day=False)
+    except ValueError as e:
+        print(f"Error: {e}")
+        return
+
+    db = Database(db_path)
+
+    print(f"Deleting posts fetched before {cutoff} (accepted posts kept)...")
+
+    try:
+        deleted = db.delete_posts_older_than(cutoff)
+    except Exception as e:
+        print(f"  ✗ Error during cleanup: {e}")
+        return
+
+    print()
+    print("=== Cleanup Summary ===")
+    print(f"Cutoff:           {cutoff}")
+    print(f"Posts deleted:    {deleted}")
+    print("=" * 10)
