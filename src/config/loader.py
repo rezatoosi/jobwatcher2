@@ -160,6 +160,8 @@ class AppConfig(BaseModel):
     rate_limiting: RateLimitingConfig = Field(default_factory=RateLimitingConfig)
     request_delay: int = 60
     fetch_limit: int = 50
+    cleanup_before_fetch: bool = False
+    cleanup_until: int = 30
     notifiers: NotifiersConfig = Field(default_factory=NotifiersConfig)
     network: NetworkConfig = Field(default_factory=NetworkConfig)
 
@@ -173,6 +175,14 @@ class AppConfig(BaseModel):
             subreddit.lower(): SubredditFilter(**rules)
             for subreddit, rules in v.items()
         }
+
+    @field_validator("cleanup_until")
+    @classmethod
+    def validate_cleanup_until(cls, v: int) -> int:
+        """Ensure cleanup_until is a positive number of days."""
+        if v <= 0:
+            raise ValueError("cleanup_until must be a positive integer")
+        return v
 
 
 def load_config(config_path: Optional[Path] = None) -> AppConfig:
