@@ -338,14 +338,6 @@ class Database:
         )
         return cursor.fetchone() is not None
 
-    def get_recent_post_ids(self, hours: int = 24) -> set[str]:
-        """Get post IDs fetched in the last N hours."""
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
-        cursor = self._conn.execute(
-            "SELECT post_id FROM posts WHERE fetched_at > ?", (cutoff.isoformat(),)
-        )
-        return {row["post_id"] for row in cursor.fetchall()}
-
     def get_post_by_id(self, post_id: str) -> Optional[PostRecord]:
         """Get a single post by ID, or None if not found."""
         cursor = self._conn.execute("SELECT * FROM posts WHERE post_id = ?", (post_id,))
